@@ -929,9 +929,9 @@ void Sarray::copy_kplane(Sarray& u, int k) {
     // SW4_MARK_END("CK_PREF");
     size_t ind_start = mni * mnj * (k - mkb);
     size_t uind_start = mni * mnj * (k - um_kb);
-#ifdef ENABLE_CUDA
-#define NO_COLLAPSE 1
-#endif
+/* #ifdef ENABLE_CUDA */
+/* #define NO_COLLAPSE 1 */
+/* #endif */
 #if defined(NO_COLLAPSE)
     Range<16> I(m_ib, m_ie + 1);
     Range<4> J(m_jb, m_je + 1);
@@ -1333,9 +1333,9 @@ void Sarray::insert_intersection(Sarray& a_U) {
     // const int lm_nk = m_nk;
     const int lm_nc = m_nc;
     // std::cout<<"Calling interest \n"<<std::flush;
-#ifdef ENABLE_GPU
-#define NO_COLLAPSE 1
-#endif
+/* #ifdef ENABLE_GPU */
+/* #define NO_COLLAPSE 1 */
+/* #endif */
 #if defined(NO_COLLAPSE)
     // LOOP 0
     Range<32> I(wind[0], wind[1] + 1);

@@ -1210,9 +1210,9 @@ void rhs4th3fortsgstr_ci(
     RAJA::RangeSegment j_range(jfirst + 2, jlast - 1);
     RAJA::RangeSegment i_range(ifirst + 2, ilast - 1);
     SW4_MARK_BEGIN("rhs4th3fortsgstr_ci::LOOP1");
-#ifdef ENABLE_CUDA
-#define NO_COLLAPSE 1
-#endif
+/* #ifdef ENABLE_CUDA */
+/* #define NO_COLLAPSE 1 */
+/* #endif */
 #if defined(NO_COLLAPSE)
 
 #ifdef SW4_AUTOTUNE
@@ -1227,10 +1227,14 @@ void rhs4th3fortsgstr_ci(
 #endif
 #else
     RAJA::kernel<
-        XRHS_POL_ASYNC>(RAJA::make_tuple(k_range, j_range, i_range), [=] RAJA_DEVICE(
-                                                                         int k,
+        /* XRHS_POL_ASYNC>(RAJA::make_tuple(k_range, j_range, i_range), [=] RAJA_DEVICE( */
+        /*                                                                  int k, */
+        /*                                                                  int j, */
+        /*                                                                  int i) { */
+        XRHS_POL_ASYNC>(RAJA::make_tuple(i_range, j_range, k_range), [=] RAJA_DEVICE(
+                                                                         int i,
                                                                          int j,
-                                                                         int i) {
+                                                                         int k) {
 #endif
       float_sw4 mux1, mux2, mux3, mux4, muy1, muy2, muy3, muy4, muz1, muz2,
           muz3, muz4;
@@ -2926,9 +2930,9 @@ void ve_bndry_stress_curvi_ci(
     RAJA::RangeSegment i_range(ifirst + 2, ilast - 1);
     RAJA::RangeSegment j_range(jfirst + 2, jlast - 1);
     SW4_MARK_END("HOST CODE");
-#ifdef ENABLE_CUDA
-#define NO_COLLAPSE 1
-#endif
+/* #ifdef ENABLE_CUDA */
+/* #define NO_COLLAPSE 1 */
+/* #endif */
 #ifdef NO_COLLAPSE
     Range<16> I(ifirst + 2, ilast - 1);
     Range<4> J(jfirst + 2, jlast - 1);

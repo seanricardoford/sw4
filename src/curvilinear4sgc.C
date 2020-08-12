@@ -134,9 +134,9 @@ void curvilinear4sg_ci(
     if (onesided[4] == 1) {
       kstart = 7;
       // SBP Boundary closure terms
-#if defined(ENABLE_CUDA)
-#define NO_COLLAPSE 1
-#endif
+/* #if defined(ENABLE_CUDA) */
+/* #define NO_COLLAPSE 1 */
+/* #endif */
 #ifdef PEEKS_GALORE
       std::cout << " ********* WARNING PEEKS GALORE MODE ******************\n";
       SW4_PEEK;
@@ -156,9 +156,9 @@ void curvilinear4sg_ci(
       RAJA::RangeSegment k_range(1, 6 + 1);
       RAJA::RangeSegment j_range(jfirst + 2, jlast - 1);
       RAJA::RangeSegment i_range(ifirst + 2, ilast - 1);
-      RAJA::kernel<CURV_POL>(
-          RAJA::make_tuple(k_range, j_range, i_range),
-          [=] RAJA_DEVICE(int k, int j, int i) {
+      RAJA::kernel<CURV_POL_LOOP_N1>(
+          RAJA::make_tuple(i_range, j_range, k_range),
+          [=] RAJA_DEVICE(int i, int j, int k) {
 #endif
             // float_sw4 mux1, mux2, mux3, mux4, muy1, muy2, muy3, muy4, muz1,
             // muz2, muz3, muz4; float_sw4 r1, r2, r3; #pragma omp for
@@ -169,34 +169,35 @@ void curvilinear4sg_ci(
             // 	    for( int i=ifirst+2; i <= ilast-2 ; i++ )
             // 	    {
             // 5 ops
-            float_sw4 ijac = strx(i) * stry(j) / jac(i, j, k);
-            float_sw4 istry = 1 / (stry(j));
-            float_sw4 istrx = 1 / (strx(i));
-            float_sw4 istrxy = istry * istrx;
+            const float_sw4 ijac = strx(i) * stry(j) / jac(i, j, k);
+            const float_sw4 istry = 1 / (stry(j));
+            const float_sw4 istrx = 1 / (strx(i));
+            const float_sw4 istrxy = istry * istrx;
 
             float_sw4 r1 = 0, r2 = 0, r3 = 0;
 
             // pp derivative (u) (u-eq)
             // 53 ops, tot=58
-            float_sw4 cof1 = (2 * mu(i - 2, j, k) + la(i - 2, j, k)) *
+            {
+            const float_sw4 cof1 = (2 * mu(i - 2, j, k) + la(i - 2, j, k)) *
                              met(1, i - 2, j, k) * met(1, i - 2, j, k) *
                              strx(i - 2);
-            float_sw4 cof2 = (2 * mu(i - 1, j, k) + la(i - 1, j, k)) *
+            const float_sw4 cof2 = (2 * mu(i - 1, j, k) + la(i - 1, j, k)) *
                              met(1, i - 1, j, k) * met(1, i - 1, j, k) *
                              strx(i - 1);
-            float_sw4 cof3 = (2 * mu(i, j, k) + la(i, j, k)) * met(1, i, j, k) *
+            const float_sw4 cof3 = (2 * mu(i, j, k) + la(i, j, k)) * met(1, i, j, k) *
                              met(1, i, j, k) * strx(i);
-            float_sw4 cof4 = (2 * mu(i + 1, j, k) + la(i + 1, j, k)) *
+            const float_sw4 cof4 = (2 * mu(i + 1, j, k) + la(i + 1, j, k)) *
                              met(1, i + 1, j, k) * met(1, i + 1, j, k) *
                              strx(i + 1);
-            float_sw4 cof5 = (2 * mu(i + 2, j, k) + la(i + 2, j, k)) *
+            const float_sw4 cof5 = (2 * mu(i + 2, j, k) + la(i + 2, j, k)) *
                              met(1, i + 2, j, k) * met(1, i + 2, j, k) *
                              strx(i + 2);
 
-            float_sw4 mux1 = cof2 - tf * (cof3 + cof1);
-            float_sw4 mux2 = cof1 + cof4 + 3 * (cof3 + cof2);
-            float_sw4 mux3 = cof2 + cof5 + 3 * (cof4 + cof3);
-            float_sw4 mux4 = cof4 - tf * (cof3 + cof5);
+            const float_sw4 mux1 = cof2 - tf * (cof3 + cof1);
+            const float_sw4 mux2 = cof1 + cof4 + 3 * (cof3 + cof2);
+            const float_sw4 mux3 = cof2 + cof5 + 3 * (cof4 + cof3);
+            const float_sw4 mux4 = cof4 - tf * (cof3 + cof5);
 
             r1 = r1 + i6 *
                           (mux1 * (u(1, i - 2, j, k) - u(1, i, j, k)) +
@@ -204,23 +205,25 @@ void curvilinear4sg_ci(
                            mux3 * (u(1, i + 1, j, k) - u(1, i, j, k)) +
                            mux4 * (u(1, i + 2, j, k) - u(1, i, j, k))) *
                           istry;
+            }
 
             // qq derivative (u) (u-eq)
             // 43 ops, tot=101
-            cof1 = (mu(i, j - 2, k)) * met(1, i, j - 2, k) *
+            {
+            const float_sw4 cof1 = (mu(i, j - 2, k)) * met(1, i, j - 2, k) *
                    met(1, i, j - 2, k) * stry(j - 2);
-            cof2 = (mu(i, j - 1, k)) * met(1, i, j - 1, k) *
+            const float_sw4 cof2 = (mu(i, j - 1, k)) * met(1, i, j - 1, k) *
                    met(1, i, j - 1, k) * stry(j - 1);
-            cof3 = (mu(i, j, k)) * met(1, i, j, k) * met(1, i, j, k) * stry(j);
-            cof4 = (mu(i, j + 1, k)) * met(1, i, j + 1, k) *
+            const float_sw4 cof3 = (mu(i, j, k)) * met(1, i, j, k) * met(1, i, j, k) * stry(j);
+            const float_sw4 cof4 = (mu(i, j + 1, k)) * met(1, i, j + 1, k) *
                    met(1, i, j + 1, k) * stry(j + 1);
-            cof5 = (mu(i, j + 2, k)) * met(1, i, j + 2, k) *
+            const float_sw4 cof5 = (mu(i, j + 2, k)) * met(1, i, j + 2, k) *
                    met(1, i, j + 2, k) * stry(j + 2);
 
-            mux1 = cof2 - tf * (cof3 + cof1);
-            mux2 = cof1 + cof4 + 3 * (cof3 + cof2);
-            mux3 = cof2 + cof5 + 3 * (cof4 + cof3);
-            mux4 = cof4 - tf * (cof3 + cof5);
+            const float_sw4 mux1 = cof2 - tf * (cof3 + cof1);
+            const float_sw4 mux2 = cof1 + cof4 + 3 * (cof3 + cof2);
+            const float_sw4 mux3 = cof2 + cof5 + 3 * (cof4 + cof3);
+            const float_sw4 mux4 = cof4 - tf * (cof3 + cof5);
 
             r1 = r1 + i6 *
                           (mux1 * (u(1, i, j - 2, k) - u(1, i, j, k)) +
@@ -228,23 +231,25 @@ void curvilinear4sg_ci(
                            mux3 * (u(1, i, j + 1, k) - u(1, i, j, k)) +
                            mux4 * (u(1, i, j + 2, k) - u(1, i, j, k))) *
                           istrx;
+            }
 
             // pp derivative (v) (v-eq)
             // 43 ops, tot=144
-            cof1 = (mu(i - 2, j, k)) * met(1, i - 2, j, k) *
+            {
+            const float_sw4 cof1 = (mu(i - 2, j, k)) * met(1, i - 2, j, k) *
                    met(1, i - 2, j, k) * strx(i - 2);
-            cof2 = (mu(i - 1, j, k)) * met(1, i - 1, j, k) *
+            const float_sw4 cof2 = (mu(i - 1, j, k)) * met(1, i - 1, j, k) *
                    met(1, i - 1, j, k) * strx(i - 1);
-            cof3 = (mu(i, j, k)) * met(1, i, j, k) * met(1, i, j, k) * strx(i);
-            cof4 = (mu(i + 1, j, k)) * met(1, i + 1, j, k) *
+            const float_sw4 cof3 = (mu(i, j, k)) * met(1, i, j, k) * met(1, i, j, k) * strx(i);
+            const float_sw4 cof4 = (mu(i + 1, j, k)) * met(1, i + 1, j, k) *
                    met(1, i + 1, j, k) * strx(i + 1);
-            cof5 = (mu(i + 2, j, k)) * met(1, i + 2, j, k) *
+            const float_sw4 cof5 = (mu(i + 2, j, k)) * met(1, i + 2, j, k) *
                    met(1, i + 2, j, k) * strx(i + 2);
 
-            mux1 = cof2 - tf * (cof3 + cof1);
-            mux2 = cof1 + cof4 + 3 * (cof3 + cof2);
-            mux3 = cof2 + cof5 + 3 * (cof4 + cof3);
-            mux4 = cof4 - tf * (cof3 + cof5);
+            const float_sw4 mux1 = cof2 - tf * (cof3 + cof1);
+            const float_sw4 mux2 = cof1 + cof4 + 3 * (cof3 + cof2);
+            const float_sw4 mux3 = cof2 + cof5 + 3 * (cof4 + cof3);
+            const float_sw4 mux4 = cof4 - tf * (cof3 + cof5);
 
             r2 = r2 + i6 *
                           (mux1 * (u(2, i - 2, j, k) - u(2, i, j, k)) +
@@ -252,23 +257,25 @@ void curvilinear4sg_ci(
                            mux3 * (u(2, i + 1, j, k) - u(2, i, j, k)) +
                            mux4 * (u(2, i + 2, j, k) - u(2, i, j, k))) *
                           istry;
+            }
 
             // qq derivative (v) (v-eq)
             // 53 ops, tot=197
-            cof1 = (2 * mu(i, j - 2, k) + la(i, j - 2, k)) *
+            {
+            const float_sw4 cof1 = (2 * mu(i, j - 2, k) + la(i, j - 2, k)) *
                    met(1, i, j - 2, k) * met(1, i, j - 2, k) * stry(j - 2);
-            cof2 = (2 * mu(i, j - 1, k) + la(i, j - 1, k)) *
+            const float_sw4 cof2 = (2 * mu(i, j - 1, k) + la(i, j - 1, k)) *
                    met(1, i, j - 1, k) * met(1, i, j - 1, k) * stry(j - 1);
-            cof3 = (2 * mu(i, j, k) + la(i, j, k)) * met(1, i, j, k) *
+            const float_sw4 cof3 = (2 * mu(i, j, k) + la(i, j, k)) * met(1, i, j, k) *
                    met(1, i, j, k) * stry(j);
-            cof4 = (2 * mu(i, j + 1, k) + la(i, j + 1, k)) *
+            const float_sw4 cof4 = (2 * mu(i, j + 1, k) + la(i, j + 1, k)) *
                    met(1, i, j + 1, k) * met(1, i, j + 1, k) * stry(j + 1);
-            cof5 = (2 * mu(i, j + 2, k) + la(i, j + 2, k)) *
+            const float_sw4 cof5 = (2 * mu(i, j + 2, k) + la(i, j + 2, k)) *
                    met(1, i, j + 2, k) * met(1, i, j + 2, k) * stry(j + 2);
-            mux1 = cof2 - tf * (cof3 + cof1);
-            mux2 = cof1 + cof4 + 3 * (cof3 + cof2);
-            mux3 = cof2 + cof5 + 3 * (cof4 + cof3);
-            mux4 = cof4 - tf * (cof3 + cof5);
+            const float_sw4 mux1 = cof2 - tf * (cof3 + cof1);
+            const float_sw4 mux2 = cof1 + cof4 + 3 * (cof3 + cof2);
+            const float_sw4 mux3 = cof2 + cof5 + 3 * (cof4 + cof3);
+            const float_sw4 mux4 = cof4 - tf * (cof3 + cof5);
 
             r2 = r2 + i6 *
                           (mux1 * (u(2, i, j - 2, k) - u(2, i, j, k)) +
@@ -276,23 +283,25 @@ void curvilinear4sg_ci(
                            mux3 * (u(2, i, j + 1, k) - u(2, i, j, k)) +
                            mux4 * (u(2, i, j + 2, k) - u(2, i, j, k))) *
                           istrx;
+            }
 
             // pp derivative (w) (w-eq)
             // 43 ops, tot=240
-            cof1 = (mu(i - 2, j, k)) * met(1, i - 2, j, k) *
+            {
+            const float_sw4 cof1 = (mu(i - 2, j, k)) * met(1, i - 2, j, k) *
                    met(1, i - 2, j, k) * strx(i - 2);
-            cof2 = (mu(i - 1, j, k)) * met(1, i - 1, j, k) *
+            const float_sw4 cof2 = (mu(i - 1, j, k)) * met(1, i - 1, j, k) *
                    met(1, i - 1, j, k) * strx(i - 1);
-            cof3 = (mu(i, j, k)) * met(1, i, j, k) * met(1, i, j, k) * strx(i);
-            cof4 = (mu(i + 1, j, k)) * met(1, i + 1, j, k) *
+            const float_sw4 cof3 = (mu(i, j, k)) * met(1, i, j, k) * met(1, i, j, k) * strx(i);
+            const float_sw4 cof4 = (mu(i + 1, j, k)) * met(1, i + 1, j, k) *
                    met(1, i + 1, j, k) * strx(i + 1);
-            cof5 = (mu(i + 2, j, k)) * met(1, i + 2, j, k) *
+            const float_sw4 cof5 = (mu(i + 2, j, k)) * met(1, i + 2, j, k) *
                    met(1, i + 2, j, k) * strx(i + 2);
 
-            mux1 = cof2 - tf * (cof3 + cof1);
-            mux2 = cof1 + cof4 + 3 * (cof3 + cof2);
-            mux3 = cof2 + cof5 + 3 * (cof4 + cof3);
-            mux4 = cof4 - tf * (cof3 + cof5);
+            const float_sw4 mux1 = cof2 - tf * (cof3 + cof1);
+            const float_sw4 mux2 = cof1 + cof4 + 3 * (cof3 + cof2);
+            const float_sw4 mux3 = cof2 + cof5 + 3 * (cof4 + cof3);
+            const float_sw4 mux4 = cof4 - tf * (cof3 + cof5);
 
             r3 = r3 + i6 *
                           (mux1 * (u(3, i - 2, j, k) - u(3, i, j, k)) +
@@ -300,22 +309,24 @@ void curvilinear4sg_ci(
                            mux3 * (u(3, i + 1, j, k) - u(3, i, j, k)) +
                            mux4 * (u(3, i + 2, j, k) - u(3, i, j, k))) *
                           istry;
+            }
 
             // qq derivative (w) (w-eq)
             // 43 ops, tot=283
-            cof1 = (mu(i, j - 2, k)) * met(1, i, j - 2, k) *
+            {
+            const float_sw4 cof1 = (mu(i, j - 2, k)) * met(1, i, j - 2, k) *
                    met(1, i, j - 2, k) * stry(j - 2);
-            cof2 = (mu(i, j - 1, k)) * met(1, i, j - 1, k) *
+            const float_sw4 cof2 = (mu(i, j - 1, k)) * met(1, i, j - 1, k) *
                    met(1, i, j - 1, k) * stry(j - 1);
-            cof3 = (mu(i, j, k)) * met(1, i, j, k) * met(1, i, j, k) * stry(j);
-            cof4 = (mu(i, j + 1, k)) * met(1, i, j + 1, k) *
+            const float_sw4 cof3 = (mu(i, j, k)) * met(1, i, j, k) * met(1, i, j, k) * stry(j);
+            const float_sw4 cof4 = (mu(i, j + 1, k)) * met(1, i, j + 1, k) *
                    met(1, i, j + 1, k) * stry(j + 1);
-            cof5 = (mu(i, j + 2, k)) * met(1, i, j + 2, k) *
+            const float_sw4 cof5 = (mu(i, j + 2, k)) * met(1, i, j + 2, k) *
                    met(1, i, j + 2, k) * stry(j + 2);
-            mux1 = cof2 - tf * (cof3 + cof1);
-            mux2 = cof1 + cof4 + 3 * (cof3 + cof2);
-            mux3 = cof2 + cof5 + 3 * (cof4 + cof3);
-            mux4 = cof4 - tf * (cof3 + cof5);
+            const float_sw4 mux1 = cof2 - tf * (cof3 + cof1);
+            const float_sw4 mux2 = cof1 + cof4 + 3 * (cof3 + cof2);
+            const float_sw4 mux3 = cof2 + cof5 + 3 * (cof4 + cof3);
+            const float_sw4 mux4 = cof4 - tf * (cof3 + cof5);
 
             r3 = r3 + i6 *
                           (mux1 * (u(3, i, j - 2, k) - u(3, i, j, k)) +
@@ -323,6 +334,7 @@ void curvilinear4sg_ci(
                            mux3 * (u(3, i, j + 1, k) - u(3, i, j, k)) +
                            mux4 * (u(3, i, j + 2, k) - u(3, i, j, k))) *
                           istrx;
+            }
 
             // All rr-derivatives at once
             // averaging the coefficient
@@ -828,9 +840,9 @@ void curvilinear4sg_ci(
     RAJA::RangeSegment k_range(kstart, kend + 1);
     RAJA::RangeSegment j_range(jfirst + 2, jlast - 1);
     RAJA::RangeSegment i_range(ifirst + 2, ilast - 1);
-    RAJA::kernel<CURV_POL>(
-        RAJA::make_tuple(k_range, j_range, i_range),
-        [=] RAJA_DEVICE(int k, int j, int i) {
+    RAJA::kernel<CURV_POL_LOOP_0>(
+        RAJA::make_tuple(i_range, j_range, k_range),
+        [=] RAJA_DEVICE(int i, int j, int k) {
 #endif
           // #pragma omp for
           //    for( int k= kstart; k <= klast-2 ; k++ )
@@ -1261,9 +1273,9 @@ void curvilinear4sg_ci(
     // RAJA::RangeSegment k_range(kstart,klast-1);
     // RAJA::RangeSegment j_range(jfirst+2,jlast-1);
     // RAJA::RangeSegment i_range(ifirst+2,ilast-1);
-    RAJA::kernel<CURV_POL>(
-        RAJA::make_tuple(k_range, j_range, i_range),
-        [=] RAJA_DEVICE(int k, int j, int i) {
+    RAJA::kernel<CURV_POL_LOOP_1>(
+        RAJA::make_tuple(i_range, j_range, k_range),
+        [=] RAJA_DEVICE(int i, int j, int k) {
 #endif
           float_sw4 ijac = strx(i) * stry(j) / jac(i, j, k);
           float_sw4 istry = 1 / (stry(j));
@@ -1669,9 +1681,9 @@ void curvilinear4sg_ci(
     // RAJA::RangeSegment k_range(kstart,klast-1);
     // RAJA::RangeSegment j_range(jfirst+2,jlast-1);
     // RAJA::RangeSegment i_range(ifirst+2,ilast-1);
-    RAJA::kernel<CURV_POL>(
-        RAJA::make_tuple(k_range, j_range, i_range),
-        [=] RAJA_DEVICE(int k, int j, int i) {
+    RAJA::kernel<CURV_POL_LOOP_2>(
+        RAJA::make_tuple(i_range, j_range, k_range),
+        [=] RAJA_DEVICE(int i, int j, int k) {
 #endif
           float_sw4 ijac = strx(i) * stry(j) / jac(i, j, k);
           float_sw4 istry = 1 / (stry(j));
@@ -2803,7 +2815,7 @@ void curvilinear4sg_ci(
     if (onesided[4] == 1) {
       kstart = 7;
       // SBP Boundary closure terms
-#define NO_COLLAPSE 1
+/* #define NO_COLLAPSE 1 */
 #if defined(NO_COLLAPSE)
       Range<16> I(ifirst + 2, ilast - 1);
       Range<4> J(jfirst + 2, jlast - 1);

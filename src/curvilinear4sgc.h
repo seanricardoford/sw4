@@ -116,9 +116,9 @@ void curvilinear4sgX_ci(
     if (onesided[4] == 1) {
       kstart = 7;
       // SBP Boundary closure terms
-#if defined(ENABLE_CUDA)
-#define NO_COLLAPSE 1
-#endif
+/* #if defined(ENABLE_CUDA) */
+/* #define NO_COLLAPSE 1 */
+/* #endif */
 #ifdef PEEKS_GALORE
       std::cout << " ********* WARNING PEEKS GALORE MODE ******************\n";
       SW4_PEEK;
@@ -2684,7 +2684,7 @@ void curvilinear4sg_ci(
     if (onesided[4] == 1) {
       kstart = 7;
       // SBP Boundary closure terms
-#define NO_COLLAPSE 1
+/* #define NO_COLLAPSE 1 */
 #if defined(NO_COLLAPSE)
       Range<16> I(ifirst + 2, ilast - 1);
       Range<4> J(jfirst + 2, jlast - 1);

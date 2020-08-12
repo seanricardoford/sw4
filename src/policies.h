@@ -10,7 +10,8 @@
 #endif
 
 #ifdef ENABLE_CUDA
-#include "cuda_policies.h"
+/* #include "cuda_policies.h" */
+#include "cuda_policies_new.h"
 #endif
 
 #ifdef ENABLE_HIP

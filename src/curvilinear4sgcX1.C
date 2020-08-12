@@ -72,9 +72,9 @@ void curvilinear4sgX1_ci(
     a1 = 1;
     sgn = -1;
   }
-#ifdef ENABLE_CUDA
-#define NO_COLLAPSE 1
-#endif
+/* #ifdef ENABLE_CUDA */
+/* #define NO_COLLAPSE 1 */
+/* #endif */
 
   const float_sw4 i6 = 1.0 / 6;
   const float_sw4 tf = 0.75;
