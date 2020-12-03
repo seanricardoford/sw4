@@ -1032,8 +1032,13 @@ void EW::solve( vector<Source*> & a_Sources, vector<TimeSeries*> & a_TimeSeries,
     if( varcase > 0 )
        addtoPseudoHessian( Um, U, Up, a_Rho, a_Mu, a_Lambda, mDt, varcase, PseudoHessian );
 
+    // Tang debug
+    printf("After addtoPseudoHessian:  U(2,18,18,10)=%e, U(3,18,18,10)=%e \n", U[0](2, 18,18,10), U[0](3, 18,18,10));
+
 // cycle the solution arrays
     cycleSolutionArrays(Um, U, Up, AlphaVEm, AlphaVE, AlphaVEp);
+    // Tang debug
+    printf("After cycleSolutionArrays:  U(2,18,18,10)=%e, U(3,18,18,10)=%e \n", U[0](2, 18,18,10), U[0](3, 18,18,10));
 
 // evaluate error for some test cases
     if (m_lamb_test || m_point_source_test || m_rayleigh_wave_test )
@@ -1148,6 +1153,9 @@ void EW::solve( vector<Source*> & a_Sources, vector<TimeSeries*> & a_TimeSeries,
 	normOfSurfaceDifference( Up, U, errInf, errL2, solInf, solL2, a_Sources);
       else
 	normOfDifference( Up, U, errInf, errL2, solInf, a_Sources );
+
+        // Tang debug
+        printf("After normOfDifference:  U(2,18,18,10)=%e, U(3,18,18,10)=%e \n", U[0](2, 18,18,10), U[0](3, 18,18,10));
 
       if ( proc_zero() )
       {         

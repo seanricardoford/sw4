@@ -329,6 +329,7 @@ void MaterialParCartesianVels::interpolate_pseudohessian( int nmpars, double* ph
                                                       int nmpard, double* phm,
                                                       vector<Sarray>& phgrid )
 {
+    printf("MaterialParCartesianVels::interpolate_pseudohessian\n");
    int ig, jg, kg, g;
    size_t ind=0;
    for( int k=1 ; k <= m_nz ; k++ )

@@ -654,8 +654,15 @@ void lbfgs( EW& simulation, int nspar, int nmpars, double* xs,
       double rnormtmp = rnorm;
       MPI_Allreduce(&rnormtmp, &rnorm, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD );
    }
-   for( int i=0 ; i < ns ; i++ )
-      rnorm = rnorm > fabs(dfs[i])*sf[i] ? rnorm : fabs(dfs[i])*sf[i];
+
+    // Tang
+    for( int i=0 ; i < ns ; i++ ) {
+        if (i < 30) 
+            fprintf(stderr, "rnorm=%f, dfs[%d]=%f, sf[%d]=%f\n", rnorm, i, dfs[i], i, sf[i]);
+       rnorm = rnorm > fabs(dfs[i])*sf[i] ? rnorm : fabs(dfs[i])*sf[i];
+    }
+   /* for( int i=0 ; i < ns ; i++ ) */
+   /*    rnorm = rnorm > fabs(dfs[i])*sf[i] ? rnorm : fabs(dfs[i])*sf[i]; */
    if( myRank == 0 )
       cout << "Max norm of scaled total gradient = " << rnorm << endl;
 

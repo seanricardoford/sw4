@@ -376,10 +376,12 @@ void compute_f_and_df( EW& simulation, int nspar, int nmpars, double* xs,
    if( nmpard > 0 )
       dfmevent = new float_sw4[nmpard];
 
+
    for( int m=0 ; m < nmpars ; m++ )
       dfs[m+nspar] = 0;
    for( int m=0 ; m < nmpard ; m++ )
       dfm[m] = 0;
+
    if( !mopt->m_test_regularizer )
    {
       mopt->init_pseudohessian( pseudo_hessian );
@@ -389,6 +391,16 @@ void compute_f_and_df( EW& simulation, int nspar, int nmpars, double* xs,
          sw4_profile->time_stamp("forward solve" );
          simulation.solve( GlobalSources[e], GlobalTimeSeries[e], mu, lambda, rho, U, Um, upred_saved, ucorr_saved, true, e, mopt->m_nsteps_in_memory, phcase, pseudo_hessian );
          sw4_profile->time_stamp("done forward solve" );
+
+          printf("Tang: after solve\n");
+          for (int g = 0; g < 1; g++) {
+              for (int ig = 18; ig < 26; ig++) 
+                  for (int jg = 18; jg < 20; jg++) 
+                      for (int kg = 1; kg < 3; kg++) {
+                          printf("pseudo_hessian[%d][2,%d,%d,%d]=%f\n", g, ig, jg, kg, pseudo_hessian[g](2,ig,jg,kg));
+                          printf("pseudo_hessian[%d][3,%d,%d,%d]=%f\n", g, ig, jg, kg, pseudo_hessian[g](3,ig,jg,kg));
+                      }
+          }
 
 // Compute misfit, 'diffs' will hold the source for the adjoint problem
 
@@ -424,7 +436,11 @@ void compute_f_and_df( EW& simulation, int nspar, int nmpars, double* xs,
             dfs[m+nspar] += dfsevent[m];
          for( int m=0 ; m < nmpard ; m++ )
             dfm[m] += dfmevent[m];
-
+// Tang debug
+printf("Loc2\n");
+for (int ii = 0; ii < 30; ii++) {
+    printf("dfs[%d]=%f\n", ii, dfs[ii]);
+}
 // 3. Give back memory
          for( unsigned int m = 0 ; m < GlobalTimeSeries[e].size() ; m++ )
             delete diffs[m];
@@ -449,8 +465,20 @@ void compute_f_and_df( EW& simulation, int nspar, int nmpars, double* xs,
          if(  nmpard > 0 )
             phm = new float_sw4[nmpard];
          mopt->m_mp->interpolate_pseudohessian( nmpars, phs, nmpard, phm, pseudo_hessian);
+// Tang debug
+printf("Loc3.1 phs\n");
+for (int ii = 0; ii < 30; ii++) {
+    printf("phs[%d]=%f\n", ii, phs[ii]);
+}
+
          float_sw4 eps=1e-3;
          normalize_pseudohessian( nmpars, phs, nmpard, phm, eps, phcase );
+// Tang debug
+printf("Loc3.2 phs\n");
+for (int ii = 0; ii < 30; ii++) {
+    printf("phs[%d]=%f\n", ii, phs[ii]);
+}
+
 
 // ..scale the gradient
          //         float_sw4* sfs=mopt->m_sfs;
@@ -459,6 +487,12 @@ void compute_f_and_df( EW& simulation, int nspar, int nmpars, double* xs,
          //         float_sw4* sfm=mopt->m_sfm;
          for( int m=0 ; m < nmpard ; m++ )
             dfm[m] *= 1.0/phm[m];
+// Tang debug
+printf("Loc3\n");
+for (int ii = 0; ii < 30; ii++) {
+    printf("dfs[%d]=%f\n", ii, dfs[ii]);
+}
+
 
 // ..and give back memory
          if( nmpars> 0 )
@@ -494,6 +528,12 @@ void compute_f_and_df( EW& simulation, int nspar, int nmpars, double* xs,
 	 MPI_Allreduce( &tikhonovd, &tikhonov, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD );
 	 f += tcoff*tikhonov;
       }
+
+// Tang debug
+printf("Loc4\n");
+for (int ii = 0; ii < 30; ii++) {
+    printf("dfs[%d]=%f\n", ii, dfs[ii]);
+}
    }
    else
    {
@@ -517,6 +557,11 @@ void compute_f_and_df( EW& simulation, int nspar, int nmpars, double* xs,
 	 for( int m=0 ; m < nmpard ; m++ )
 	    dfm[m] += dfmevent[m];
       }
+// Tang debug
+printf("Loc5\n");
+for (int ii = 0; ii < 30; ii++) {
+    printf("dfs[%d]=%f\n", ii, dfs[ii]);
+}
    }
 
    if( myrank == 0 && verbose >= 1 )

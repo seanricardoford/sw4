@@ -331,6 +331,7 @@ void MaterialParCartesianVsVp::interpolate_pseudohessian( int nmpars, double* ph
                                                           int nmpard, double* phm,
                                                           vector<Sarray>& phgrid )
 {
+    printf(" MaterialParCartesianVsVp::interpolate_pseudohessian\n");
    int ig, jg, kg, g;
    size_t ind=0;
    for( int k=1 ; k <= m_nz ; k++ )
@@ -345,6 +346,10 @@ void MaterialParCartesianVsVp::interpolate_pseudohessian( int nmpars, double* ph
 	    {
                phs[ind*2  ] = phgrid[g](2,ig,jg,kg);
                phs[ind*2+1] = phgrid[g](3,ig,jg,kg);
+               if (ind < 10) {
+                   printf("phs[%d]=%f, g=%d, ig=%d, jg=%d, kg=%d, x=%d, y=%d, z=%d\n", ind*2,   phs[ind*2  ], g,ig,jg,kg,x,y,z);
+                   printf("phs[%d]=%f, g=%d, ig=%d, jg=%d, kg=%d, x=%d, y=%d, z=%d\n", ind*2+1, phs[ind*2+1], g,ig,jg,kg,x,y,z);
+               }
             }
             else
             {
@@ -427,4 +432,3 @@ void MaterialParCartesianVsVp::subtract_base_mtrl( int nms, double* xms )
 	 }
    
 }
-

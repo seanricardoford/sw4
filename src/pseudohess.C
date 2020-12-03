@@ -1,5 +1,8 @@
 #include "sw4.h"
 
+#include <stdio.h>
+
+
 //-----------------------------------------------------------------------
 void add_pseudohessian_terms1(  int ifirst, int ilast, int jfirst, int jlast, 
                                int kfirst, int klast,
@@ -462,6 +465,32 @@ void add_pseudohessian_terms2( int ifirst, int ilast, int jfirst, int jlast,
 #define srcla(c,i,j,k) srcla_[(i+2)+5*(j+2)+25*(k-1)+(c-1)*250]
 #define srcmu(c,i,j,k) srcmu_[(i+2)+5*(j+2)+25*(k-1)+(c-1)*250]
 
+   // Tang debug
+   printf("ifirst=%d, ilast=%d, jfirst=%d, jlast=%d, kfirst=%d, klast=%d\n", ifirst, ilast, jfirst, jlast, kfirst, klast);
+   printf("ifirstact=%d, ilastact=%d, jfirstact=%d, jlastact=%d, kfirstact=%d, klastact=%d\n", ifirstact, ilastact, jfirstact, jlastact, kfirstact, klastact);
+   printf("onesided: %d, %d, %d, %d, %d, %d\n", onesided[0], onesided[1], onesided[2], onesided[3], onesided[4], onesided[5]);
+   printf("h=%f, dt=%f, varcase=%d\n", h, dt, varcase);
+   int g=0;
+   for (int ig = 18; ig < 19; ig++) 
+       for (int jg = 18; jg < 19; jg++) 
+           for (int kg = 10; kg < 11; kg++) {
+               printf("um[2,%d,%d,%d]=%e\n", ig, jg, kg, um(2,ig,jg,kg));
+               printf("um[3,%d,%d,%d]=%e\n", ig, jg, kg, um(3,ig,jg,kg));
+               printf("u[2,%d,%d,%d]=%e\n", ig, jg, kg, u(2,ig,jg,kg));
+               printf("u[3,%d,%d,%d]=%e\n", ig, jg, kg, u(3,ig,jg,kg));
+               printf("up[2,%d,%d,%d]=%e\n", ig, jg, kg, up(2,ig,jg,kg));
+               printf("up[3,%d,%d,%d]=%e\n", ig, jg, kg, up(3,ig,jg,kg));
+               printf("rho[%d,%d,%d]=%e\n", ig, jg, kg, rho(ig,jg,kg));
+               printf("mu[%d,%d,%d]=%e\n", ig, jg, kg, mu(ig,jg,kg));
+               printf("lambda[%d,%d,%d]=%e\n", ig, jg, kg, lambda(ig,jg,kg));
+               /* printf("bope[%d,%d]=%e\n", ig, jg, kg, bope(ig,jg,kg)); */
+               /* printf("acof[%d,%d,%d]=%e\n", ig, jg, kg, acof(ig,jg,kg)); */
+               printf("ghcof[%d]=%e\n", kg, ghcof(kg));
+               printf("ph[2,%d,%d,%d]=%e\n", ig, jg, kg, ph(2,ig,jg,kg));
+               printf("ph[3,%d,%d,%d]=%e\n", ig, jg, kg, ph(3,ig,jg,kg));
+           }
+
+
    float_sw4* srcmu_=new float_sw4[750];
    float_sw4* srcla_=new float_sw4[750];
 
@@ -610,6 +639,13 @@ void add_pseudohessian_terms2( int ifirst, int ilast, int jfirst, int jlast,
          {
             ph(2,l,m,n) += 4*rho(l,m,n)*mu(l,m,n)*phtermmu;
             ph(3,l,m,n) += 4*rho(l,m,n)*(2*mu(l,m,n)+lambda(l,m,n))*phtermla;
+
+             if (l==18 && m==18 && n==10) {
+                 printf("1-(18,18,1)rho=%e, mu=%e, lambda=%e, phtermmu=%e, phtermla=%e\n",
+                         rho(l,m,n), mu(l,m,n), lambda(l,m,n), phtermmu, phtermla);
+               printf("ph[2,%d,%d,%d]=%e\n", l, m, n, ph(2,l,m,n));
+               printf("ph[3,%d,%d,%d]=%e\n", l, m, n, ph(3,l,m,n));
+             }
          }
          else 
          {
@@ -739,6 +775,12 @@ void add_pseudohessian_terms2( int ifirst, int ilast, int jfirst, int jlast,
          {
             ph(2,l,m,n) += 4*rho(l,m,n)*mu(l,m,n)*phtermmu;
             ph(3,l,m,n) += 4*rho(l,m,n)*(2*mu(l,m,n)+lambda(l,m,n))*phtermla;
+             if (l==18 && m==18 && n==10) {
+                 printf("2-(18,18,1)rho=%e, mu=%e, lambda=%e, phtermmu=%e, phtermla=%e\n",
+                         rho(l,m,n), mu(l,m,n), lambda(l,m,n), phtermmu, phtermla);
+               printf("ph[2,%d,%d,%d]=%e\n", l, m, n, ph(2,l,m,n));
+               printf("ph[3,%d,%d,%d]=%e\n", l, m, n, ph(3,l,m,n));
+             }
          }
          else 
          {
@@ -877,6 +919,13 @@ void add_pseudohessian_terms2( int ifirst, int ilast, int jfirst, int jlast,
          {
             ph(2,l,m,n) += 4*rho(l,m,n)*mu(l,m,n)*phtermmu;
             ph(3,l,m,n) += 4*rho(l,m,n)*(2*mu(l,m,n)+lambda(l,m,n))*phtermla;
+             if (l==18 && m==18 && n==10) {
+                 printf("3-(18,18,1)rho=%e, mu=%e, lambda=%e, phtermmu=%e, phtermla=%e\n",
+                         rho(l,m,n), mu(l,m,n), lambda(l,m,n), phtermmu, phtermla);
+               printf("ph[2,%d,%d,%d]=%e\n", l, m, n, ph(2,l,m,n));
+               printf("ph[3,%d,%d,%d]=%e\n", l, m, n, ph(3,l,m,n));
+             }
+
          }
          else 
          {
@@ -1005,6 +1054,13 @@ void add_pseudohessian_terms2( int ifirst, int ilast, int jfirst, int jlast,
          {
             ph(2,l,m,n) += 4*rho(l,m,n)*mu(l,m,n)*phtermmu;
             ph(3,l,m,n) += 4*rho(l,m,n)*(2*mu(l,m,n)+lambda(l,m,n))*phtermla;
+             if (l==18 && m==18 && n==10) {
+                 printf("4-(18,18,1)rho=%e, mu=%e, lambda=%e, phtermmu=%e, phtermla=%e\n",
+                         rho(l,m,n), mu(l,m,n), lambda(l,m,n), phtermmu, phtermla);
+               printf("ph[2,%d,%d,%d]=%e\n", l, m, n, ph(2,l,m,n));
+               printf("ph[3,%d,%d,%d]=%e\n", l, m, n, ph(3,l,m,n));
+             }
+
          }
          else 
          {
@@ -1114,6 +1170,13 @@ void add_pseudohessian_terms2( int ifirst, int ilast, int jfirst, int jlast,
          {
             ph(2,l,m,n) += 4*rho(l,m,n)*mu(l,m,n)*phtermmu;
             ph(3,l,m,n) += 4*rho(l,m,n)*(2*mu(l,m,n)+lambda(l,m,n))*phtermla;
+             if (l==18 && m==18 && n==10) {
+                 printf("5-(18,18,1)rho=%e, mu=%e, lambda=%e, phtermmu=%e, phtermla=%e\n",
+                         rho(l,m,n), mu(l,m,n), lambda(l,m,n), phtermmu, phtermla);
+               printf("ph[2,%d,%d,%d]=%e\n", l, m, n, ph(2,l,m,n));
+               printf("ph[3,%d,%d,%d]=%e\n", l, m, n, ph(3,l,m,n));
+             }
+
          }
          else 
          {
@@ -1223,6 +1286,13 @@ void add_pseudohessian_terms2( int ifirst, int ilast, int jfirst, int jlast,
          {
             ph(2,l,m,n) += 4*rho(l,m,n)*mu(l,m,n)*phtermmu;
             ph(3,l,m,n) += 4*rho(l,m,n)*(2*mu(l,m,n)+lambda(l,m,n))*phtermla;
+             if (l==18 && m==18 && n==10) {
+                 printf("6-(18,18,1)rho=%e, mu=%e, lambda=%e, phtermmu=%e, phtermla=%e\n",
+                         rho(l,m,n), mu(l,m,n), lambda(l,m,n), phtermmu, phtermla);
+               printf("ph[2,%d,%d,%d]=%e\n", l, m, n, ph(2,l,m,n));
+               printf("ph[3,%d,%d,%d]=%e\n", l, m, n, ph(3,l,m,n));
+             }
+
          }
          else 
          {

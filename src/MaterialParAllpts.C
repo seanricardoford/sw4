@@ -219,6 +219,7 @@ void MaterialParAllpts::interpolate_pseudohessian( int nmpars, double* phs,
                                                    int nmpard, double* phm, 
                                                    vector<Sarray>& phgrid )
 {
+    printf("MaterialParAllpts::interpolate_pseudohessian\n");
    size_t gp, ind;
    for( int g=0 ; g < m_ew->mNumberOfGrids ; g++ )
    {
