@@ -851,9 +851,13 @@ bool EW::wasParsingSuccessful() { return mParsingSuccessful; }
 void EW::printTime(int cycle, float_sw4 t, bool force) const {
   if (!mQuiet && proc_zero() &&
       (force || mPrintInterval == 1 || (cycle % mPrintInterval) == 1 ||
-       cycle == 1))
+       cycle == 1)) {
+    time_t now;
+    time(&now);
     // string big enough for >1 million time steps
-    printf("Time step %7i  t = %15.7e\n", cycle, t);
+    printf("Time step %7i  t = %15.7e\t%s", cycle, t, ctime(&now));
+    fflush(stdout);
+  }
 }
 //-----------------------------------------------------------------------
 void EW::printPreamble(vector<Source*>& a_Sources, int event) const {
@@ -1206,10 +1210,11 @@ bool EW::getDepth(float_sw4 x, float_sw4 y, float_sw4 z, float_sw4& depth) {
 
     // // evaluate elevation of topography on the grid (smoothed topo)
     success = true;
-    if (!m_gridGenerator->interpolate_topography(this, x, y, zMinTilde,
-                                                 mTopoGridExt)) {
+    int ret = m_gridGenerator->interpolate_topography(this, x, y, zMinTilde,
+                                                 mTopoGridExt);
+    if (ret < 0) {
       cerr << "ERROR: getDepth: Unable to evaluate topography for x=" << x
-           << " y= " << y << " on proc # " << getRank() << endl;
+           << " y= " << y << " on proc # " << getRank() << ", ret=" << ret << endl;
       //            cerr << "q=" << q << " r=" << r << " qMin=" << qMin << "
       //            qMax=" << qMax << " rMin=" << rMin << " rMax=" << rMax <<
       //            endl;
@@ -2926,7 +2931,7 @@ RAJA_HOST_DEVICE float_sw4 EW::Gaussian_x_T_Integral(float_sw4 t, float_sw4 R,
 //-----------------------------------------------------------------------
 // void EW::get_exact_point_source( Sarray& u, float_sw4 t, int g, Source&
 // source )
-#ifdef ENABLE_HIP
+#ifdef NO_DEVICE_FUNCTION_POINTERS
 void EW::get_exact_point_source(float_sw4* up, float_sw4 t, int g,
                                 Source& source, int* wind) {}
 #else
