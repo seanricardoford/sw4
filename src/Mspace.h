@@ -18,7 +18,8 @@
 #include "umpire/ResourceManager.hpp"
 //#include "umpire/Umpire.hpp"
 //#include "umpire/Allocator.hpp"
-#include "umpire/strategy/DynamicPool.hpp"
+//#include "umpire/strategy/DynamicPool.hpp"
+#include "umpire/strategy/QuickPool.hpp"
 //#include "umpire/strategy/MixedPool.hpp"
 //#include "umpire/util/StatisticsDatabase.hpp"
 #include "umpire/strategy/AlignedAllocator.hpp"
@@ -55,8 +56,13 @@ void CheckError(hipError_t const err, const char *file, char const *const fun,
 #define SW4_CheckDeviceError(err) \
   CheckError(err, __FILE__, __FUNCTION__, __LINE__)
 //#define PROFILER_START SW4_CheckDeviceError(hipProfilerStart())
+#ifndef SW4_NO_ROCTRACER
 #define PROFILER_STOP SW4_CheckDeviceError(hipProfilerStop())
 #define PROFILER_START roctracer_start()
+#else
+#define PROFILER_START
+#define PROFILER_STOP
+#endif
 #else
 // void CheckError(hipError_t const err, const char *file, char const *const
 // fun,
@@ -110,7 +116,7 @@ struct global_variable_holder_struct {
 
 extern struct global_variable_holder_struct global_variables;
 #ifdef ENABLE_CUDA
-#define SW4_TRACK_MEMORY_ALLOCATIONS 1
+//#define SW4_TRACK_MEMORY_ALLOCATIONS 1
 #endif
 #if defined(SW4_TRACK_MEMORY_ALLOCATIONS)
 #define SW4_NEW(type, arg) (new (type, __FILE__, __LINE__) arg)

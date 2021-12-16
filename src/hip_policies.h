@@ -7,7 +7,7 @@
 #define SYNC_STREAM SW4_CheckDeviceError(hipStreamSynchronize(0))
 #define SW4_PEEK SW4_CheckDeviceError(hipPeekAtLastError());
 
-#define SW4_MALLOC_MANAGED(addr, size) (hipMallocManaged(addr, size))
+#define SW4_MALLOC_MANAGED(addr, size) (hipMalloc(addr, size))
 #define SW4_MALLOC_DEVICE(addr, size) (hipMalloc(addr, size))
 #define SW4_MALLOC_PINNED(addr, size) \
   (hipHostMalloc(addr, size, hipHostMallocDefault))
@@ -375,8 +375,9 @@ using INJ_POL2_ASYNC = RAJA::KernelPolicy<RAJA::statement::HipKernelAsync<
 
 // CurvilinearInterface2::communicate_array
 
-using CA_POL =
-    RAJA::KernelPolicy<RAJA::statement::HipKernelFixed<512,RAJA::statement::Tile<
+using CA_POL = RAJA::KernelPolicy<RAJA::statement::HipKernelFixed<
+    512,
+    RAJA::statement::Tile<
         0, RAJA::tile_fixed<8>, RAJA::hip_block_z_loop,
         RAJA::statement::Tile<
             1, RAJA::tile_fixed<8>, RAJA::hip_block_y_loop,

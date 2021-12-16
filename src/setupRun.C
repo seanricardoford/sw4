@@ -894,15 +894,13 @@ void EW::setupSBPCoeff() {
 }
 
 //-----------------------------------------------------------------------
-void EW::perturb_vels( Sarray& cs, Sarray& cp, Sarray& rndpert ) 
-{
-   for( int k=cs.m_kb ; k <= cs.m_ke ; k++ )
-      for( int j=cs.m_jb ; j <= cs.m_je ; j++ )
-         for( int i=cs.m_ib ; i <= cs.m_ie ; i++ )
-         {
-            cs(i,j,k) *= rndpert(i,j,k);
-            cp(i,j,k) *= rndpert(i,j,k);
-         }
+void EW::perturb_vels(Sarray &cs, Sarray &cp, Sarray &rndpert) {
+  for (int k = cs.m_kb; k <= cs.m_ke; k++)
+    for (int j = cs.m_jb; j <= cs.m_je; j++)
+      for (int i = cs.m_ib; i <= cs.m_ie; i++) {
+        cs(i, j, k) *= rndpert(i, j, k);
+        cp(i, j, k) *= rndpert(i, j, k);
+      }
 }
 
 //-----------------------------------------------------------------------
@@ -1004,7 +1002,7 @@ void EW::set_materials()
           "mNumberOfCartesianGrids=%i\n",
           mMaterialExtrapolate, mNumberOfCartesianGrids);
     }
-
+   SW4_MARK_BEGIN("SetMat::Section 1");
     if (mMaterialExtrapolate > 0 && mNumberOfCartesianGrids > 1) {
       int kFrom;
       for (g = 0; g < mNumberOfCartesianGrids; g++) {
@@ -1072,7 +1070,7 @@ void EW::set_materials()
 
       }  // end for g
     }    // end if mMaterialExtrapolate > 0 ...
-
+SW4_MARK_END("SetMat::Section 1");
     // tmp
     //    printf("\n useVelocityThresholds=%i vpMin=%e vsMin=%e\n\n",
     //    m_useVelocityThresholds, m_vpMin, m_vsMin);
@@ -1089,6 +1087,7 @@ void EW::set_materials()
       extrapolateInXY(mQp);
     }
     //    cout << "min rho after " << mRho[0].minimum() << endl;
+SW4_MARK_BEGIN("SetMat::Section 2");
     if (m_use_attenuation && m_qmultiplier != 1) {
       for (int g = 0; g < mNumberOfGrids; g++)
 #pragma omp parallel for
@@ -1111,7 +1110,9 @@ void EW::set_materials()
               if (mLambda[g](i, j, k) < m_vpMin) mLambda[g](i, j, k) = m_vpMin;
             }
     }
+SW4_MARK_END("SetMat::Section 2");
 
+SW4_MARK_BEGIN("SetMat::RANDOMIZE");
     // add random perturbation
     //    cout << "randomize = " << m_randomize << " randblsize= " <<
     //    m_random_blocks.size() << endl;
@@ -1132,13 +1133,24 @@ void EW::set_materials()
         Sarray rndpert(mMu[g]);
         rndpert.set_value(1.0);
         for (unsigned int b = 0; b < m_random_blocks.size(); b++)
-          m_random_blocks[b]->assign_perturbation( g, rndpert,  mMu[g], mGridSize[g],
-                                                      zmin, zmax );
-        perturb_vels( mMu[g], mLambda[g], rndpert );
+          m_random_blocks[b]->assign_perturbation(
+              g, rndpert, mMu[g], mGridSize[g], zmin, zmax, false);
+        perturb_vels(mMu[g], mLambda[g], rndpert);
+
+        if (m_randomize_density) {
+          rndpert.set_value(1.0);
+          for (unsigned int b = 0; b < m_random_blocks.size(); b++)
+            m_random_blocks[b]->assign_perturbation(
+                g, rndpert, mMu[g], mGridSize[g], zmin, zmax, true);
+          perturb_rho(mRho[g], rndpert);
+        }
+
         communicate_array_host(mMu[g], g);
         communicate_array_host(mLambda[g], g);
+        if (m_randomize_density) communicate_array(mRho[g], g);
       }
     }
+SW4_MARK_END("SetMat::RANDOMIZE");
     convert_material_to_mulambda();
 
     check_for_nan(mMu, 1, "mu ");
@@ -2634,4 +2646,12 @@ void EW::checkpoint_twilight_test(vector<Sarray> &Um, vector<Sarray> &U,
             errInf, errL2);
     }
   }  // end if twilight testing
+}
+//-----------------------------------------------------------------------
+void EW::perturb_rho(Sarray &rho, Sarray &rndpert) {
+  for (int k = rho.m_kb; k <= rho.m_ke; k++)
+    for (int j = rho.m_jb; j <= rho.m_je; j++)
+      for (int i = rho.m_ib; i <= rho.m_ie; i++) {
+        rho(i, j, k) *= rndpert(i, j, k);
+      }
 }

@@ -1218,9 +1218,15 @@ void rhs4th3fortsgstr_ci(
                                      jlast - 1, k1, k2 + 1);
     forall3asyncAT<__LINE__>(IJK_AT, [=] RAJA_DEVICE(int i, int j, int k) {
 #else
+#ifdef ENABLE_CUDA
     Range<16> I(ifirst + 2, ilast - 1);
     Range<4> J(jfirst + 2, jlast - 1);
     Range<4> K(k1, k2 + 1);
+#else
+    Range<64> I(ifirst + 2, ilast - 1);
+    Range<2> J(jfirst + 2, jlast - 1);
+    Range<2> K(k1, k2 + 1);
+#endif
     forall3async(I, J, K, [=] RAJA_DEVICE(int i, int j, int k) {
 #endif
 #else
@@ -1530,17 +1536,24 @@ void rhs4th3fortsgstr_ci(
     // printf("END LOOP1\n");
     SW4_MARK_END("rhs4th3fortsgstr_ci::LOOP1");
     if (onesided[4] == 1) {
+      SW4_MARK_BEGIN("rhs4th3fortsgstr_ci::LOOP2");
 #if !defined(RAJA_ONLY)
+#ifdef ENABLE_CUDA
       Range<16> I(ifirst + 2, ilast - 1);
       Range<4> J(jfirst + 2, jlast - 1);
       Range<4> K(1, 7);
+#else
+      Range<64> I(ifirst + 2, ilast - 1);
+      Range<2> J(jfirst + 2, jlast - 1);
+      Range<2> K(1, 7);
+#endif
       forall3async(I, J, K, [=] RAJA_DEVICE(int i, int j, int k) {
 #else
       RAJA::RangeSegment k_range(1, 6 + 1);
       RAJA::RangeSegment j_range(jfirst + 2, jlast - 1);
       RAJA::RangeSegment i_range(ifirst + 2, ilast - 1);
 
-      SW4_MARK_BEGIN("rhs4th3fortsgstr_ci::LOOP2");
+      //  SW4_MARK_BEGIN("rhs4th3fortsgstr_ci::LOOP2");
       // printf("START LOOP2 \n");
 
       RAJA::kernel<
@@ -1863,12 +1876,18 @@ void rhs4th3fortsgstr_ci(
       // printf("END LOOP2 \n");
     }
     if (onesided[5] == 1) {
+      SW4_MARK_BEGIN("rhs4th3fortsgstr_ci::LOOP3");
       // printf("START LOOP3 \n");
 #if !defined(RAJA_ONLY)
+#ifdef ENABLE_CUDA
       Range<16> I(ifirst + 2, ilast - 1);
       Range<4> J(jfirst + 2, jlast - 1);
       Range<4> K(nk - 5, nk + 1);
-      SW4_MARK_BEGIN("rhs4th3fortsgstr_ci::LOOP3");
+#else
+      Range<64> I(ifirst + 2, ilast - 1);
+      Range<2> J(jfirst + 2, jlast - 1);
+      Range<2> K(nk - 5, nk + 1);
+#endif
       forall3async(I, J, K, [=] RAJA_DEVICE(int i, int j, int k) {
 #else
       RAJA::RangeSegment k_range(nk - 5, nk + 1);
@@ -2521,15 +2540,17 @@ void satt_ci(float_sw4* __restrict__ up, float_sw4* __restrict__ qs,
   const size_t npts = static_cast<size_t>((ilast - ifirst + 1)) *
                       (jlast - jfirst + 1) * (klast - kfirst + 1);
   const float_sw4 efact = M_PI * cfreq * dt;
-#pragma omp parallel for
-#pragma ivdep
-#pragma simd
-  for (size_t i = 0; i < npts; i++) {
+  // #pragma omp parallel for
+  //#pragma ivdep
+  //#pragma simd
+
+  // for (size_t i = 0; i < npts; i++) {
+  forall(0, npts, [=] RAJA_DEVICE(size_t i) {
     float_sw4 fact = exp(-efact / qs[i]);
     up[i] *= fact;
     up[i + npts] *= fact;
     up[i + 2 * npts] *= fact;
-  }
+  });
 }
 
 //-----------------------------------------------------------------------
@@ -2870,7 +2891,7 @@ void ve_bndry_stress_curvi_ci(
     float_sw4* __restrict__ a_met, int side, float_sw4* __restrict__ sbop,
     int usesg, float_sw4* __restrict__ a_strx, float_sw4* __restrict__ a_stry) {
   SW4_MARK_FUNCTION;
-  SW4_MARK_BEGIN("HOST CODE");
+  // SW4_MARK_BEGIN("HOST CODE");
 #define alphap(c, i, j, k) \
   a_alphap[base3 + i + ni * (j) + nij * (k) + nijk * (c)]
 #define muve(i, j, k) a_muve[base + i + ni * (j) + nij * (k)]
@@ -2911,7 +2932,7 @@ void ve_bndry_stress_curvi_ci(
     // 	 for( int i=ifirst+2 ; i<=ilast-2 ; i++ )
     // 	 {
 
-    SW4_MARK_END("HOST CODE");
+    // SW4_MARK_END("HOST CODE");
 
 #if !defined(RAJA_ONLY)  // Fine
     Range<16> I(ifirst + 2, ilast - 1);
