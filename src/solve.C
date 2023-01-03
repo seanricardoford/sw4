@@ -34,6 +34,7 @@
 __constant__ double cmem_acof[384];
 __constant__ double cmem_acof_no_gp[384];
 #endif
+#include <sstream>
 #include "EW.h"
 #include "Mspace.h"
 #include "caliper.h"
@@ -48,6 +49,10 @@ __constant__ double cmem_acof_no_gp[384];
 #ifdef USE_HDF5
 #include "SfileOutput.h"
 #include "sachdf5.h"
+#endif
+
+#ifdef SW4_USE_HPCT
+#include <hpctoolkit.h>
 #endif
 
 #ifdef SW4_TRACK_MPI
@@ -82,7 +87,10 @@ void EW::solve(vector<Source*>& a_Sources, vector<TimeSeries*>& a_TimeSeries,
 #endif
 
 #ifdef SW4_NORM_TRACE
-  std::ofstream norm_trace_file("Norms.dat");
+  std::ofstream norm_trace_file;
+  if (!getRank()) {
+    norm_trace_file.open("Norms.dat");
+  }
 #endif
   // print_hwm(getRank());
   // solution arrays
@@ -336,6 +344,7 @@ void EW::solve(vector<Source*>& a_Sources, vector<TimeSeries*>& a_TimeSeries,
   float_sw4 t;
   if (m_check_point->do_restart()) {
     double timeRestartBegin = MPI_Wtime();
+#ifndef SW4_USE_SCR
     if (!m_check_point->useHDF5())
       m_check_point->read_checkpoint(t, beginCycle, Um, U, AlphaVEm, AlphaVE);
 #ifdef USE_HDF5
@@ -347,6 +356,11 @@ void EW::solve(vector<Source*>& a_Sources, vector<TimeSeries*>& a_TimeSeries,
       cout << "Configured to restart with HDF5 but SW4 is not compiled with "
               "HDF5!"
            << endl;
+#endif
+#else
+    m_check_point->read_checkpoint_scr(t, beginCycle, Um, U, AlphaVEm,
+                                          AlphaVE);
+
 #endif
 
     // tmp
@@ -762,7 +776,6 @@ void EW::solve(vector<Source*>& a_Sources, vector<TimeSeries*>& a_TimeSeries,
   SW4_PEEK;
   SYNC_DEVICE;
 #endif
-
   for (int ts = 0; ts < a_TimeSeries.size(); ts++) {
     // can't compute a 2nd order accurate time derivative at this point
     // therefore, don't record anything related to velocities for the initial
@@ -773,12 +786,30 @@ void EW::solve(vector<Source*>& a_Sources, vector<TimeSeries*>& a_TimeSeries,
       int j0 = a_TimeSeries[ts]->m_j0;
       int k0 = a_TimeSeries[ts]->m_k0;
       int grid0 = a_TimeSeries[ts]->m_grid0;
+      //gset.insert(grid0);
       extractRecordData(a_TimeSeries[ts]->getMode(), i0, j0, k0, grid0, uRec,
                         Um, U);
       a_TimeSeries[ts]->recordData(uRec);
     }
   }
-
+#ifdef SW4_PREFETCH_AFTER_TS
+  //
+  // This option reduces solve time by 1.5% for a single node case with 4K receivers
+  // on Perlmutter. Probably slower with smaller receiver counts and on Coral machines
+  //
+  std::set<int> gset;
+  for (int ts = 0; ts < a_TimeSeries.size(); ts++) {
+     if (a_TimeSeries[ts]->myPoint()) {
+        int grid0 = a_TimeSeries[ts]->m_grid0;
+	gset.insert(grid0);
+     }
+  }
+  std::cout<<"PREFETCH AFTER TIMESERIES DATA EXTRACT ACTIVE IN "<<gset.size()<<" grids \n";
+  for( auto p=gset.begin();p!=gset.end();p++){
+	  std::cout<<" Prefetch active in grid  "<<*p<<"\n";
+  }
+#endif
+  //Um[grid0].forceprefetch();
   // save any images for cycle = 0 (initial data), or beginCycle-1 (checkpoint
   // restart)
   update_images(beginCycle - 1, t, U, Um, Up, mRho, mMu, mLambda, a_Sources, 1);
@@ -908,6 +939,9 @@ void EW::solve(vector<Source*>& a_Sources, vector<TimeSeries*>& a_TimeSeries,
     if (currentTimeStep == (beginCycle + 2)) print_hwm(getRank());
     if (currentTimeStep == (beginCycle + 10)) {
       PROFILER_START;
+#ifdef SW4_USE_HPCT
+      hpctoolkit_sampling_start();
+#endif
       // SW4_MARK_BEGIN("CLEAN_TIME");
       end_clean_time_reg = true;
 #ifdef ENABLE_CUDA
@@ -1421,11 +1455,18 @@ void EW::solve(vector<Source*>& a_Sources, vector<TimeSeries*>& a_TimeSeries,
         a_TimeSeries[ts]->recordData(uRec);
       }
     }
+#ifdef SW4_PREFETCH_AFTER_TS
+    for( auto p=gset.begin();p!=gset.end();p++){
+          Um[*p].forceprefetch();
+          Up[*p].forceprefetch();
+  }
+#endif
 
     // Write check point, if requested (timeToWrite returns false if
     // checkpointing is not used)
     if (m_check_point->timeToWrite(t, currentTimeStep, mDt)) {
       double time_chkpt = MPI_Wtime();
+#ifndef SW4_USE_SCR
       if (!m_check_point->useHDF5())
         m_check_point->write_checkpoint(t, currentTimeStep, U, Up, AlphaVE,
                                         AlphaVEp);
@@ -1438,6 +1479,10 @@ void EW::solve(vector<Source*>& a_Sources, vector<TimeSeries*>& a_TimeSeries,
         cout << "Configured to checkpoint with HDF5 but SW4 is not compiled "
                 "with HDF5!"
              << endl;
+#endif
+#else			
+      m_check_point->write_checkpoint_scr(t, currentTimeStep, U, Up, AlphaVE,
+                                             AlphaVEp);
 #endif
       double time_chkpt_tmp = MPI_Wtime() - time_chkpt;
       if (mVerbose >= 0)
@@ -1607,7 +1652,7 @@ void EW::solve(vector<Source*>& a_Sources, vector<TimeSeries*>& a_TimeSeries,
 #if USE_HDF5
   // Only do this if there are any essi hdf5 files
   if (mESSI3DFiles.size() > 0) {
-    for( int i3 = 0 ; i3 < mESSI3DFiles.size() ; i3++ )
+    for (int i3 = 0; i3 < mESSI3DFiles.size(); i3++)
       mESSI3DFiles[i3]->finalize_hdf5();
 
     // Calculate the total ESSI hdf5 io time across all ranks
@@ -1675,7 +1720,7 @@ void EW::solve(vector<Source*>& a_Sources, vector<TimeSeries*>& a_TimeSeries,
       normOfDifference(Up, U, errInf, errL2, solInf, a_Sources);
 
     if (proc_zero()) {
-      printf("\n Final solution errors: Linf = %15.7e, L2 = %15.7e\n", errInf,
+      printf("\n Final solution errors: Linf = %15.7e, L2 = %25.15e\n", errInf,
              errL2);
 
       // output time, Linf-err, Linf-sol-err
@@ -4688,6 +4733,7 @@ void EW::testSourceDiscretization(int kx[3], int ky[3], int kz[3],
 void EW::extractRecordData(TimeSeries::receiverMode mode, int i0, int j0,
                            int k0, int g0, vector<float_sw4>& uRec,
                            vector<Sarray>& Um2, vector<Sarray>& U) {
+	SW4_MARK_FUNCTION;
   if (mode == TimeSeries::Displacement) {
     uRec.resize(3);
     uRec[0] = U[g0](1, i0, j0, k0);

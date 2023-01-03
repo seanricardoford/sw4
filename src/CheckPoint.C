@@ -15,6 +15,10 @@
 #include "H5Zzfp_props.h"
 #endif
 
+#ifdef SW4_USE_SCR
+#include "scr.h"
+#endif
+
 CheckPoint* CheckPoint::nil = static_cast<CheckPoint*>(0);
 
 //-----------------------------------------------------------------------
@@ -35,8 +39,11 @@ CheckPoint::CheckPoint(EW* a_ew)
       mDoCheckPointing(false),
       mRestartPathSet(false),
       mDoRestart(false),
+#ifdef USE_HDF5_ASYNC
       m_es_id(0),
-      m_kji_order(true) {}
+#endif
+      m_kji_order(true) {
+}
 
 //-----------------------------------------------------------------------
 // Save check point files, but no restart
@@ -56,7 +63,9 @@ CheckPoint::CheckPoint(EW* a_ew, int cycle, int cycleInterval, string fname,
       mDoCheckPointing(true),
       mRestartPathSet(false),
       mDoRestart(false),
+#ifdef USE_HDF5_ASYNC
       m_es_id(0),
+#endif
       m_kji_order(true) {
   m_double = sizeof(float_sw4) == sizeof(double);
 }
@@ -77,7 +86,9 @@ CheckPoint::CheckPoint(EW* a_ew, string fname, size_t bufsize)
       m_fileno(0),
       mDoCheckPointing(false),
       mRestartPathSet(false),
+#ifdef USE_HDF5_ASYNC
       m_es_id(0),
+#endif
       mDoRestart(true) {
   m_double = sizeof(float_sw4) == sizeof(double);
 }
@@ -96,6 +107,23 @@ bool CheckPoint::do_checkpointing() { return mDoCheckPointing; }
 
 //-----------------------------------------------------------------------
 int CheckPoint::get_checkpoint_cycle_interval() { return mCycleInterval; }
+
+//-----------------------------------------------------------------------
+// Disable restart if given restartlatest, but no checkpoint is available
+bool CheckPoint::verify_restart() {
+#ifdef SW4_USE_SCR
+  // Check whether SCR loaded a checkpoint.
+  int have_restart = 0;
+  char cycle_num[SCR_MAX_FILENAME];
+  SCR_Have_restart(&have_restart, cycle_num);
+
+  // Disable restart if SCR could not find a checkpoint.
+  if (! have_restart) {
+    mDoRestart = false;
+  }
+#endif
+return false;
+}
 
 //-----------------------------------------------------------------------
 bool CheckPoint::do_restart() { return mDoRestart; }
@@ -184,8 +212,8 @@ void CheckPoint::define_pio() {
   int glow = 0, ghigh = mEW->mNumberOfGrids;
 
   double time_start = MPI_Wtime();
-  double time_measure[12];
-  time_measure[0] = time_start;
+  /* double time_measure[12]; */
+  /* time_measure[0] = time_start; */
 
   // Create the restart directory if it doesn't exist
   //
@@ -247,9 +275,8 @@ void CheckPoint::define_pio() {
     }
     if (mEW->proc_zero())
       cout << "Creating a Parallel_IO object for grid g = " << g << endl;
-    m_parallel_io[g - glow] =
-        new Parallel_IO(iwrite, mEW->usingParallelFS(), global, local, start,
-                        m_bufsize);
+    m_parallel_io[g - glow] = new Parallel_IO(iwrite, mEW->usingParallelFS(),
+                                              global, local, start, m_bufsize);
     // tmp
     if (mEW->proc_zero())
       cout << "Done creating the Parallel_IO object" << endl;
@@ -272,6 +299,18 @@ bool CheckPoint::timeToWrite(float_sw4 time, int cycle, float_sw4 dt) {
   if (cycle == mWritingCycle) do_it = true;
   if (mCycleInterval != 0 && cycle % mCycleInterval == 0 && time >= mStartTime)
     do_it = true;
+
+#ifndef SW4_USE_SCR
+  // FYI: One can optionally ask SCR whether it recommends a checkpoint.
+  // This call isn't required, and one can ignore
+  // the recommendation even if one makes the call.
+  // By default, this always returns false,
+  // but there are various ways to configure SCR to use it.
+  //int flag;
+  //SCR_Need_checkpoint(&flag);
+  //do_it = flag;
+#endif
+
   return do_it;
 }
 
@@ -568,6 +607,7 @@ void CheckPoint::read_checkpoint(float_sw4& a_time, int& a_cycle,
 
 //-----------------------------------------------------------------------
 float_sw4 CheckPoint::getDt() {
+#ifndef SW4_USE_SCR
   float_sw4 dt;
   if (mEW->getRank() == 0) {
     std::stringstream s;
@@ -609,6 +649,49 @@ float_sw4 CheckPoint::getDt() {
   }
   MPI_Bcast(&dt, 1, mEW->m_mpifloat, 0, mEW->m_cartesian_communicator);
   return dt;
+#else
+
+  int have_restart = 0;
+  char cycle_num[SCR_MAX_FILENAME];
+  SCR_Have_restart(&have_restart, cycle_num);
+  if (! have_restart) {
+    std::cerr<<"Error :: SCR found no checkpoints ! \n"<<std::flush;
+    abort();
+  } 
+  
+  SCR_Start_restart(cycle_num);
+  
+  std::stringstream s;
+  if (get_restart_path().length()!=0)
+    s<<get_restart_path()<<"/"<<cycle_num<<"/CheckPoint_"<<mEW->getRank()<<".bin";
+  else
+    s<<get_restart_path()<<"./"<<cycle_num<<"/CheckPoint_"<<mEW->getRank()<<".bin";
+  char scr_file[SCR_MAX_FILENAME];
+  SCR_Route_file(s.str().c_str(), scr_file);
+
+  int valid=1;
+  if (std::FILE *file=std::fopen(scr_file,"rb")){
+    float_sw4 dt; 
+    if ( std::fread(&dt,sizeof dt,1,file)==1) {
+      scr_file_handle=file;
+      return dt;
+    } else {
+      std::cerr<<"ERROR:: Read of SCR checkpoint file failed in getDt \n"<<std::flush;
+      std::fclose(file);
+      valid = 0;
+    }
+  } else {
+    std::cerr<<"ERROR::Restart file opening failed in getDt "<<s.str()<<"\n"<<std::flush;
+    valid = 0;
+  }
+  
+  if (!valid){
+    std::cerr<<"ERROR :: Invalid restart file "<<s.str()<<"\n Aborting..\n"<<std::flush;
+    abort();
+  }
+  
+  return -1.0e99; // Dummy return to suppress warnings. Should never be reached
+#endif
 }
 
 //-----------------------------------------------------------------------
@@ -665,7 +748,7 @@ void CheckPoint::write_header(int& fid, float_sw4 a_time, int a_cycle,
     //      cout << "wrote global size " << globalSize[0] << " " <<
     //      globalSize[1] << " " << globalSize[2] << " "
     //	   << globalSize[3] << " " << globalSize[4] << " " << globalSize[5] <<
-    //endl;
+    // endl;
   }
   hsize = (4 + 6 * ng) * sizeof(int) + 2 * sizeof(float_sw4);
 }
@@ -774,6 +857,13 @@ void CheckPoint::cycle_checkpoints(string CheckPointFile) {
 }
 
 //-----------------------------------------------------------------------
+// Restart from the most recent chekpoint if available, otherwise start new run
+void CheckPoint::set_restart_latest(size_t bufsize) {
+  m_bufsize = bufsize;
+  mDoRestart = true;
+}
+
+//-----------------------------------------------------------------------
 void CheckPoint::set_restart_file(string fname, size_t bufsize) {
   mRestartFile = fname;
   m_bufsize = bufsize;
@@ -793,6 +883,7 @@ std::string CheckPoint::get_restart_path() {
     retval = mRestartPath;
     return retval;
   }
+  return retval;
 }
 
 //-----------------------------------------------------------------------
@@ -1010,10 +1101,10 @@ void CheckPoint::read_header_hdf5(hid_t fid, float_sw4& a_time, int& a_cycle) {
 }
 
 void CheckPoint::finalize_hdf5() {
+#ifdef USE_HDF5_ASYNC
   size_t num_in_progress;
   hbool_t op_failed;
   int ret;
-#ifdef USE_HDF5_ASYNC
   if (m_es_id > 0) {
     ret = H5ESwait(m_es_id, H5ES_WAIT_FOREVER, &num_in_progress, &op_failed);
     if (ret < 0) fprintf(stderr, "Error with H5ESwait!\n");
@@ -1425,3 +1516,149 @@ void CheckPoint::read_checkpoint_hdf5(float_sw4& a_time, int& a_cycle,
   H5Fclose(fid);
 }
 #endif  // End USE_HDF5
+//-----------------------------------------------------------------------
+void CheckPoint::write_checkpoint_scr(float_sw4 a_time, int a_cycle,
+				      vector<Sarray>& a_U, vector<Sarray>& a_Up,
+				      vector<Sarray*>& a_AlphaVE,
+				      vector<Sarray*>& a_AlphaVEm) {
+#ifdef SW4_USE_SCR
+  std::stringstream s,cs;
+  auto mDt = mEW->getTimeStep();
+  // Workaround for empty string when checkpoint dir is not specified in input file
+  cs<<"cycle="<<a_cycle;
+  if (get_restart_path().length()!=0)
+    s<<get_restart_path()<<"/"<<cs.str()<<"/CheckPoint_"<<mEW->getRank()<<".bin";
+  else
+    s<<get_restart_path()<<"./"<<cs.str()<<"/CheckPoint_"<<mEW->getRank()<<".bin";
+  
+  SCR_Start_output(cs.str().c_str(), SCR_FLAG_CHECKPOINT);
+  char scr_file[SCR_MAX_FILENAME];
+  SCR_Route_file(s.str().c_str(), scr_file);
+  std::cout<<"Writing SCR checkpoint file to "<<scr_file<<"\n";
+  int valid=1;
+  if (std::FILE *file=std::fopen(scr_file,"wb")){
+    int ng = mEW->mNumberOfGrids;
+    std::fwrite(&mDt, sizeof mDt,1, file);
+    std::fwrite(&a_time,sizeof a_time,1,file);
+    std::fwrite(&a_cycle,sizeof a_cycle,1,file);
+    
+    int nmech = mEW->getNumberOfMechanisms();
+    std::fwrite(&ng, sizeof ng, 1, file);
+    std::fwrite(&nmech, sizeof nmech, 1, file);
+    int prec = m_double ? 8 : 4;
+    std::fwrite(&prec, sizeof prec, 1, file);
+    
+    int globalSize[6];
+    for (int g = 0; g < ng; g++) {
+      globalSize[0] = 1;
+      globalSize[1] = mGlobalDims[g][1] - mGlobalDims[g][0] + 1;
+      globalSize[2] = 1;
+      globalSize[3] = mGlobalDims[g][3] - mGlobalDims[g][2] + 1;
+      globalSize[4] = 1;
+      globalSize[5] = mGlobalDims[g][5] - mGlobalDims[g][4] + 1;
+      std::fwrite(&globalSize, sizeof globalSize[0], 6, file);
+    }
+
+    size_t total=0;
+    for(int g=0;g<ng;g++){
+      total+=a_U[g].fwrite(file);
+      total+=a_Up[g].fwrite(file);
+      for (int m = 0; m < mEW->getNumberOfMechanisms(); m++) {
+	total+=a_AlphaVE[g][m].fwrite(file);
+	total+=a_AlphaVEm[g][m].fwrite(file);
+      }
+    }
+    std::fwrite(&total, sizeof total, 1, file);
+    //std::cout<<"TOTAL SIZE IS "<<total<<"\n";
+    std::fclose(file);
+  } else{
+    std::cerr<<"Failed to open checkpoint file "<<scr_file<<"\n";
+    abort();
+  }
+  SCR_Complete_output(valid);
+#endif
+}
+//-----------------------------------------------------------------------
+void CheckPoint::read_checkpoint_scr(float_sw4& a_time, int& a_cycle,
+                                 vector<Sarray>& a_Um, vector<Sarray>& a_U,
+                                 vector<Sarray*>& a_AlphaVEm,
+                                 vector<Sarray*>& a_AlphaVE) {
+#ifdef SW4_USE_SCR
+
+  SYNC_STREAM;
+  int valid=1;
+  FILE *file=scr_file_handle;
+  if (file){
+    // Dt has a;ready been read in by getDt
+    std::fread(&a_time,sizeof a_time,1,file);
+    std::fread(&a_cycle,sizeof a_cycle, 1,file);
+    
+    int ng;
+    std::fread(&ng, sizeof ng, 1, file);
+    CHECK_INPUT(ng == mEW->mNumberOfGrids,
+		"CheckPoint::read_checkpoint_scr: Error number of grids on restart file"
+		<< " does not match number of grids in solver");
+    int nmech;
+    std::fread(&nmech,sizeof nmech, 1,file);
+    CHECK_INPUT(
+		nmech == mEW->getNumberOfMechanisms(),
+		"CheckPoint::read_checkpoint_scr: Error number "
+		<< "of attenuation mechanisms on restart file"
+		<< " does not match number of attenuation mechanisms in solver");
+    int prec;
+    std::fread(&prec, sizeof prec, 1, file);
+    CHECK_INPUT(
+      (m_double && prec == 8) || (!m_double && prec == 4),
+      "CheckPoint::read_checkpoint_scr, floating point precision on restart file"
+          << " does not match precision in solver");
+
+    int globalSize[6];
+    for (int g = 0; g < ng; g++) {
+
+    int ret = fread(globalSize, sizeof globalSize[0], 6, file);
+    CHECK_INPUT(ret == 6 ,
+                "CheckPoint::read_checkpoint_scr: Error reading global sizes");
+    CHECK_INPUT(globalSize[0] == 1,
+                "CheckPoint::read_checkpoint_scr: Error in global sizes, "
+                    << "low i-index is " << globalSize[0]);
+    CHECK_INPUT(globalSize[1] == mGlobalDims[g][1] - mGlobalDims[g][0] + 1,
+                "CheckPoint::read_checkpoint_scr: Error in global sizes, "
+                    << "upper i-index is " << globalSize[1]);
+    CHECK_INPUT(globalSize[2] == 1,
+                "CheckPoint::read_checkpoint_scr: Error in global sizes, "
+                    << "low j-index is " << globalSize[2]);
+    CHECK_INPUT(globalSize[3] == mGlobalDims[g][3] - mGlobalDims[g][2] + 1,
+                "CheckPoint::read_checkpoint_scr: Error in global sizes, "
+                    << "upper j-index is " << globalSize[3]);
+    CHECK_INPUT(globalSize[4] == 1,
+                "CheckPoint::read_checkpoint_scr: Error in global sizes, "
+                    << "low k-index is " << globalSize[4]);
+    CHECK_INPUT(globalSize[5] == mGlobalDims[g][5] - mGlobalDims[g][4] + 1,
+                "CheckPoint::read_checkpoint_scr: Error in global sizes, "
+                    << "upper k-index is " << globalSize[5]);
+  }
+    size_t total=0;
+    for(int g=0;g<mEW->mNumberOfGrids;g++){
+      total+=a_Um[g].fread(file);
+      total+=a_U[g].fread(file);
+      for (int m = 0; m < mEW->getNumberOfMechanisms(); m++) {
+	total+=a_AlphaVEm[g][m].fread(file);
+	total+=a_AlphaVE[g][m].fread(file);
+      }
+    }
+    size_t rtotal=0;
+    std::fread(&rtotal, sizeof rtotal, 1, file);
+    //std::cout<<"TOTAL SIZES ARE "<<total<<" "<<rtotal<<"\n";
+    CHECK_INPUT(total == rtotal ,
+                "CheckPoint::read_checkpoint_scr: Error reading Sarray size totals :: Read "<<total<<"  expected "<<rtotal<<"\n");
+    std::fclose(file);
+  } else {
+    std::cerr<<"Invalid file handle in read_checkpoint_scr \n"<<std::flush;
+    valid=0;
+  }
+  if (SCR_Complete_restart(valid)!=SCR_SUCCESS){
+    std::cerr<<"ERROR :: Read of SCR restart file failed in read_checkpoint_scr\n";
+    abort();
+  }
+#endif
+}

@@ -118,9 +118,8 @@ void ESSI3D::set_buffer_interval(int a_bufferInterval) {
 
 //-----------------------------------------------------------------------
 void ESSI3D::setup() {
-  const bool debug = false;
-  MPI_Comm comm = mEW->m_cartesian_communicator;
-  MPI_Info info = MPI_INFO_NULL;
+  bool debug = false;
+  /* debug = true; */
 
   int g = mEW->mNumberOfGrids - 1;   // top curvilinear grid only
   m_ihavearray = true;               // gets negated if we don't, below
@@ -271,8 +270,6 @@ void ESSI3D::compute_image(Sarray& a_A, int a_comp, int cycle) {
   int ju = mEW->m_jEnd[g];
   int kl = mEW->m_kStart[g];
   int ku = mEW->m_kEnd[g];
-  int ni = (iu - il + 1);
-  int nj = (ju - jl + 1);
 
   // int niw = (mWindow[1]-mWindow[0])+1;
   // int nijw=niw*((mWindow[3]-mWindow[2])+1);
@@ -314,21 +311,13 @@ void ESSI3D::write_image(int cycle, std::string& path, float_sw4 t,
 #ifdef USE_HDF5
 void ESSI3D::open_vel_file(int a_cycle, std::string& a_path, float_sw4 a_time,
                            Sarray& a_Z) {
-  herr_t ierr;
-  hid_t dataspace_id;
-  hid_t dataset_id;
-  hid_t prop_id;
   bool debug = false;
   /* debug = true; */
 
-  const int num_dims = 3 + 1;  // 3 space + 1 time that will be extendible
-  hsize_t dims[num_dims] = {0, 0, 0, 0};
-
+  bool is_root = true;
   int g = mEW->mNumberOfGrids - 1;
   int window[6], global[3];
   for (int d = 0; d < 3; d++) {
-    dims[d] = mWindow[2 * d + 1] - mWindow[2 * d] + 1;
-
     window[2 * d] = (m_ihavearray) ? (mWindow[2 * d] - mGlobalDims[2 * d]) : 0;
     window[2 * d + 1] =
         (m_ihavearray) ? (mWindow[2 * d + 1] - mGlobalDims[2 * d]) : -1;
@@ -344,12 +333,12 @@ void ESSI3D::open_vel_file(int a_cycle, std::string& a_path, float_sw4 a_time,
   m_hdf5helper->set_ihavearray(m_ihavearray);
 
   if (debug && (m_rank == 0))
-    cout << "Creating hdf5 file: " << m_hdf5helper->filename() << endl;
+    cout << "Create/open hdf5 file: " << m_hdf5helper->filename() << endl;
 
   double hdf5_time = MPI_Wtime();
 
   if (m_rank == 0) {
-    m_hdf5helper->create_file(m_isRestart);
+    m_hdf5helper->create_file(m_isRestart, is_root);
 
     // Write header metadata
     double h = mEW->mGridSize[g];
@@ -374,7 +363,7 @@ void ESSI3D::open_vel_file(int a_cycle, std::string& a_path, float_sw4 a_time,
       }
     }
 
-    if (debug && (m_rank == 0))
+    if (debug)
       cout << "Creating hdf5 velocity fields..." << endl;
   }
 
@@ -398,7 +387,8 @@ void ESSI3D::open_vel_file(int a_cycle, std::string& a_path, float_sw4 a_time,
   MPI_Comm comm = mEW->m_cartesian_communicator;
   MPI_Barrier(comm);
 
-  m_hdf5helper->create_file(true);
+  is_root = false;
+  m_hdf5helper->create_file(true, is_root);
 
   m_hdf5_time += (MPI_Wtime() - hdf5_time);
 

@@ -48,8 +48,10 @@
 #if defined(SW4_EXPT_3)
 #include "curvilinear4sgcX3.h"
 #endif
+#ifdef ENABLE_GPU
 extern __constant__ double cmem_acof[384];
 extern __constant__ double cmem_acof_no_gp[384];
+#endif
 extern "C" {
 void tw_aniso_force(int ifirst, int ilast, int jfirst, int jlast, int kfirst,
                     int klast, float_sw4* fo, float_sw4 t, float_sw4 om,
@@ -335,8 +337,11 @@ void innerloopanisgstrvc_ci(
 // the routine will replace the Fortran routine curvilinear4sg()
 void curvilinear4sg_ci(
     int ifirst, int ilast, int jfirst, int jlast, int kfirst, int klast,
-    float_sw4* __restrict__ a_u, float_sw4* __restrict__ a_mu,
-    float_sw4* __restrict__ a_lambda, float_sw4* __restrict__ a_met,
+    float_sw4* a_u,
+    float_sw4* a_u1, float_sw4* a_u2,  float_sw4* a_u3, 
+    float_sw4* __restrict__ a_mu,
+    float_sw4* __restrict__ a_lambda, 
+    float_sw4* __restrict__ a_met,
     float_sw4* __restrict__ a_jac, float_sw4* __restrict__ a_lu, int* onesided,
     float_sw4* __restrict__ a_acof, float_sw4* __restrict__ a_bope,
     float_sw4* __restrict__ a_ghcof, float_sw4* __restrict__ a_acof_no_gp,
@@ -648,18 +653,18 @@ EW::EW(const string& fileName, vector<vector<Source*>>& a_GlobalSources,
 #if defined(SW4_DEVICE_MPI_BUFFERS)
   mpi_buffer_space = Space::Device;
   if (!m_myRank) std::cout << "Using MPI buffers in device memory\n";
-  if (!mpi_supports_device_buffers()) {
-    std::cerr << "SW4 must be run using the -M -gpu flag with Device buffers\n";
-    abort();
-  }
+  //if (!mpi_supports_device_buffers()) {
+   // std::cerr << "SW4 must be run using the -M -gpu flag with Device buffers\n";
+    //abort();
+  //}
 #elif defined(SW4_MANAGED_MPI_BUFFERS)
   mpi_buffer_space = Space::Managed;
   if (!m_myRank) std::cout << "Using MPI buffers in managed memory\n";
-  if (!mpi_supports_device_buffers()) {
-    std::cerr
-        << "SW4 must be run using the -M -gpu flag with Managed buffers\n";
-    abort();
-  }
+  //if (!mpi_supports_device_buffers()) {
+   // std::cerr
+    //    << "SW4 must be run using the -M -gpu flag with Managed buffers\n";
+    //abort();
+  //}
 #elif defined(SW4_PINNED_MPI_BUFFERS)
   mpi_buffer_space = Space::Pinned;
   if (!m_myRank)
@@ -721,6 +726,8 @@ EW::EW(const string& fileName, vector<vector<Source*>>& a_GlobalSources,
     m_utc0[e].resize(7);
   }
 
+  MPI_Comm_dup(MPI_COMM_WORLD, &m_1d_communicator);
+
   // read the input file and setup the simulation object
   if (parseInputFile(a_GlobalSources, a_GlobalTimeSeries))
     mParsingSuccessful = true;
@@ -730,6 +737,9 @@ EW::EW(const string& fileName, vector<vector<Source*>>& a_GlobalSources,
     // char fname[100];
     // sprintf(fname,"sw4-error-log-p%i.txt", m_myRank);
     // msgStream.open(fname);
+
+  // Potentially disable restart if no checkpoint is found
+  m_check_point->verify_restart();
 
 #if defined(ENABLE_GPU)
   float_sw4* tmpa =
@@ -760,8 +770,8 @@ EW::~EW() {
   ::operator delete[](m_sbop, Space::Managed);
 #endif
   ::operator delete[](viewArrayActual, Space::Managed);
-
   for (int m = 0; m < mNumberOfGrids; m += 4) {
+  //std::cout<<"MPI BUFFER TYPE IS "<<as_int(mpi_buffer_space)<<" "<<std::get<0>(bufs_type1[4 * m])<<" \n";
     ::operator delete[](std::get<0>(bufs_type1[4 * m]), mpi_buffer_space);
     ::operator delete[](std::get<0>(bufs_type3[4 * m]), mpi_buffer_space);
     ::operator delete[](std::get<0>(bufs_type4[4 * m]), mpi_buffer_space);
@@ -1947,6 +1957,7 @@ void EW::normOfDifference(vector<Sarray>& a_Uex, vector<Sarray>& a_U,
                           float_sw4& diffInf, float_sw4& diffL2,
                           float_sw4& xInf, vector<Source*>& a_globalSources) {
   SW4_MARK_FUNCTION;
+  SYNC_STREAM;
   int g, ifirst, ilast, jfirst, jlast, kfirst, klast;
   int imin, imax, jmin, jmax, kmin, kmax;
 
@@ -2425,6 +2436,7 @@ void EW::initialData(float_sw4 a_t, vector<Sarray>& a_U,
 bool EW::exactSol(float_sw4 a_t, vector<Sarray>& a_U,
                   vector<Sarray*>& a_AlphaVE, vector<Source*>& sources) {
   SW4_MARK_FUNCTION;
+  SYNC_STREAM;
   int ifirst, ilast, jfirst, jlast, kfirst, klast;
   float_sw4 *u_ptr, om, ph, cv, h, zmin;
   bool retval;
@@ -4971,6 +4983,12 @@ void EW::evalRHS(vector<Sarray>& a_U, vector<Sarray>& a_Mu,
     jlast = m_jEnd[g];
     kfirst = m_kStart[g];
     klast = m_kEnd[g];
+    const int ni = ilast - ifirst + 1;
+    //   const int nj= jlast-jfirst+1;
+    const int nij = ni * (jlast - jfirst + 1);
+    const int nijk = nij * (klast - kfirst + 1);
+    const int base = -(ifirst + ni * jfirst + nij * kfirst);
+    const int base3 = base - nijk;
     h = mGridSize[g];  // how do we define the grid size for the curvilinear
                        // grid?
     nz = m_global_nz[g];
@@ -4980,7 +4998,8 @@ void EW::evalRHS(vector<Sarray>& a_U, vector<Sarray>& a_Mu,
       if (usingSupergrid())
         rhs4th3fortsgstr_ci(ifirst, ilast, jfirst, jlast, kfirst, klast, nz,
                             onesided_ptr, m_acof, m_bope, m_ghcof, uacc_ptr,
-                            u_ptr, mu_ptr, la_ptr, h, m_sg_str_x[g],
+                            u_ptr+base3+nijk,u_ptr+base3+2*nijk,u_ptr+base3+3*nijk,
+			    mu_ptr+base, la_ptr+base, h, m_sg_str_x[g],
                             m_sg_str_y[g], m_sg_str_z[g], op);
       else
         rhs4th3fort_ci(ifirst, ilast, jfirst, jlast, kfirst, klast, nz,
@@ -5023,8 +5042,10 @@ void EW::evalRHS(vector<Sarray>& a_U, vector<Sarray>& a_Mu,
           if (usingSupergrid())
             rhs4th3fortsgstr_ci(ifirst, ilast, jfirst, jlast, kfirst, klast, nz,
                                 onesided_ptr, m_acof_no_gp, m_bope,
-                                m_ghcof_no_gp, uacc_ptr, alpha_ptr, mua_ptr,
-                                lambdaa_ptr, h, m_sg_str_x[g], m_sg_str_y[g],
+                                m_ghcof_no_gp, uacc_ptr, 
+				alpha_ptr+base3+nijk, alpha_ptr+base3+2*nijk, alpha_ptr+base3+3*nijk, 
+				mua_ptr+base,
+                                lambdaa_ptr+base, h, m_sg_str_x[g], m_sg_str_y[g],
                                 m_sg_str_z[g], op);
           else
             rhs4th3fort_ci(ifirst, ilast, jfirst, jlast, kfirst, klast, nz,
@@ -5078,6 +5099,12 @@ void EW::evalRHS(vector<Sarray>& a_U, vector<Sarray>& a_Mu,
     kfirst = m_kStart[g];
     klast = m_kEnd[g];
     onesided_ptr = m_onesided[g];
+    const int ni = ilast - ifirst + 1;
+    const int nij = ni * (jlast - jfirst + 1);
+    const int nijk = nij * (klast - kfirst + 1);
+    const int base = -(ifirst + ni * jfirst + nij * kfirst);
+    const int base3 = base - nijk;
+    const int base4 = base - nijk;
     int nkg = m_global_nz[g];
     char op = '=';  // assign Uacc := L_u(u)
 #ifdef PEEKS_GALORE
@@ -5097,8 +5124,16 @@ void EW::evalRHS(vector<Sarray>& a_U, vector<Sarray>& a_Mu,
           met_ptr, jac_ptr, uacc_ptr, onesided_ptr, m_acof, m_bope, m_ghcof,
           m_acof_no_gp, m_ghcof_no_gp, m_sg_str_x[g], m_sg_str_y[g], nkg, op);
 #else
-      curvilinear4sg_ci(ifirst, ilast, jfirst, jlast, kfirst, klast, u_ptr,
-                        mu_ptr, la_ptr, met_ptr, jac_ptr, uacc_ptr,
+      // curvilinear4sg_ci(ifirst, ilast, jfirst, jlast, kfirst, klast, u_ptr,
+      //                   mu_ptr, la_ptr, met_ptr, jac_ptr, uacc_ptr,
+      //                   onesided_ptr, m_acof, m_bope, m_ghcof, m_acof_no_gp,
+      //                   m_ghcof_no_gp, m_sg_str_x[g], m_sg_str_y[g], nkg, op);
+      curvilinear4sg_ci(ifirst, ilast, jfirst, jlast, kfirst, klast, 
+			u_ptr+base3,
+			u_ptr+base3+nijk, u_ptr+base3+2*nijk,u_ptr+base3+3*nijk,
+                        mu_ptr, la_ptr, 
+			met_ptr+base4,		
+			jac_ptr, uacc_ptr,
                         onesided_ptr, m_acof, m_bope, m_ghcof, m_acof_no_gp,
                         m_ghcof_no_gp, m_sg_str_x[g], m_sg_str_y[g], nkg, op);
 #endif
@@ -5166,12 +5201,22 @@ void EW::evalRHS(vector<Sarray>& a_U, vector<Sarray>& a_Mu,
               m_sg_str_x[g], m_sg_str_y[g], nkg, op);
 #else
           // cudaMemcpyToSymbol(tex_acof, m_acof_no_gp, 384*sizeof(double));
-          curvilinear4sg_ci(ifirst, ilast, jfirst, jlast, kfirst, klast,
-                            alpha_ptr, mua_ptr, lambdaa_ptr, met_ptr, jac_ptr,
+          // curvilinear4sg_ci(ifirst, ilast, jfirst, jlast, kfirst, klast,
+          //                   alpha_ptr, mua_ptr, lambdaa_ptr, met_ptr, jac_ptr,
+          //                   uacc_ptr, onesided_ptr, m_acof_no_gp, m_bope,
+          //                   m_ghcof_no_gp, m_acof_no_gp, m_ghcof_no_gp,
+          //                   m_sg_str_x[g], m_sg_str_y[g], nkg, op);
+	  curvilinear4sg_ci(ifirst, ilast, jfirst, jlast, kfirst, klast,
+			    alpha_ptr+base3,
+                            alpha_ptr+base3+nijk, alpha_ptr+base3+2*nijk, alpha_ptr+base3+3*nijk,
+			    mua_ptr, lambdaa_ptr,
+			    met_ptr+base4,		
+			    jac_ptr,
                             uacc_ptr, onesided_ptr, m_acof_no_gp, m_bope,
                             m_ghcof_no_gp, m_acof_no_gp, m_ghcof_no_gp,
                             m_sg_str_x[g], m_sg_str_y[g], nkg, op);
 #endif
+
         } else {
           if (usingSupergrid())
             curvilinear4sg(&ifirst, &ilast, &jfirst, &jlast, &kfirst, &klast,
@@ -9153,7 +9198,8 @@ void EW::extractTopographyFromSfile(std::string a_topoFileName) {
 }
 
 #ifdef USE_HDF5
-static void read_hdf5_attr(hid_t loc, hid_t dtype, char* name, void* data) {
+static void read_hdf5_attr(hid_t loc, hid_t dtype, const char* name,
+                           void* data) {
   hid_t attr_id;
   int ierr;
   attr_id = H5Aopen(loc, name, H5P_DEFAULT);
@@ -9163,7 +9209,7 @@ static void read_hdf5_attr(hid_t loc, hid_t dtype, char* name, void* data) {
   H5Aclose(attr_id);
 }
 
-static char* read_hdf5_attr_str(hid_t loc, char* name) {
+static char* read_hdf5_attr_str(hid_t loc, const char* name) {
   hid_t attr_id, dtype;
   int ierr;
   char* data = NULL;
@@ -9263,7 +9309,7 @@ void EW::extractTopographyFromGMG(std::string a_topoFileName) {
   if (m_myRank == 0 && mVerbose >= 2) {
     printf("GMG header: azimuth=%e, origin_x=%f, origin_y=%f\n", az, origin_x,
            origin_y);
-    printf("            hh=%e, ni=%ld, nj=%ld\n", hh, dims[0], dims[1]);
+    printf("            hh=%e, ni=%llu, nj=%llu\n", hh, dims[0], dims[1]);
   }
 
   float* f_data = new float[dims[0] * dims[1]];

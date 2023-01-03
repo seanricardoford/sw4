@@ -526,7 +526,7 @@ void EW::communicate_array(Sarray& u, int grid) {
 #if defined(ENABLE_GPU)
   communicate_array_async(u, grid);
 #else
-  communicate_array_hostu, grid);
+  communicate_array_host(u, grid);
 #endif
   return;
 }
@@ -958,6 +958,7 @@ void EW::make_type(vector<std::tuple<int, int, int>>& send_type,
 
   float_sw4* tbuf =
       SW4_NEW(mpi_buffer_space, float_sw4[i1 * j1 * 4 + i2 * j2 * 4]);
+  //std::cout<<"MPI BUFFER ALLOCATE TYPE IS "<<as_int(mpi_buffer_space)<<" "<<tbuf<<"\n";
   bufs_type[4 * g + 0] = std::make_tuple(tbuf, tbuf + i1 * j1);
   bufs_type[4 * g + 1] =
       std::make_tuple(tbuf + 2 * i1 * j1, tbuf + 3 * i1 * j1);
@@ -1305,7 +1306,7 @@ void EW::getbuffer_device(float_sw4* data, float_sw4* buf,
 #else  // #ifdef SW4_STAGED_MPI_BUFFERS
 
   // Code for PINNED,DEVICE AND MANAGED BUFFERS
-#if defined(RAJA_ONLY)
+#if defined(RAJA_ONLY) || not defined(ENABLE_GPU)
   RAJA::RangeSegment k_range(0, bl);
   RAJA::RangeSegment i_range(0, count);
   RAJA::kernel<BUFFER_POL>(RAJA::make_tuple(k_range, i_range),
@@ -1392,7 +1393,7 @@ void EW::putbuffer_device(float_sw4* data, float_sw4* buf,
   // The PINNED, DEVICE and MANAGED cases
 #else
 
-#if !defined(RAJA_ONLY)
+#if !defined(RAJA_ONLY) && defined(ENABLE_GPU)
   Range<16> k_range(0, bl);
   Range<16> i_range(0, count);
   forall2async(i_range, k_range, [=] RAJA_DEVICE(int i, int k) {
@@ -1607,7 +1608,11 @@ void EW::AMPI_Sendrecv2(float_sw4* a, int scount,
     {
 #endif
       // getbuffer_device(a,std::get<0>(buf),sendt,true);
+#ifdef SW4_A100
+      getbuffer_device(a, std::get<0>(buf), sendt);
+#else
       getbuffer_host(a, std::get<0>(buf), sendt);
+#endif
 #if defined(SW4_TRACK_MPI)
       auto t2 = SW4_CHRONO_NOW;
       size_t size = 0;
@@ -1653,7 +1658,11 @@ void EW::AMPI_Sendrecv2(float_sw4* a, int scount,
 #if defined(SW4_TRACK_MPI)
       auto t1 = SW4_CHRONO_NOW;
 #endif
+#ifdef SW4_A100
+      putbuffer_device(b, std::get<1>(buf), recvt);
+#else
       putbuffer_host(b, std::get<1>(buf), recvt);
+#endif
 #if defined(SW4_TRACK_MPI)
       auto t2 = SW4_CHRONO_NOW;
       size_t size = 0;
