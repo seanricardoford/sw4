@@ -438,11 +438,11 @@ void rhs4th3wind(int ifirst, int ilast, int jfirst, int jlast, int kfirst,
     }  // end if (!upper && !lower)
 
     if (upper) {
-#if !defined(RAJA_ONLY)
+#if !defined(RAJA_ONLY) && defined(ENABLE_GPU)
 #ifdef ENABLE_CUDA
       Range<16> I(ifirst + 2, ilast - 1);
       Range<4> J(jfirst + 2, jlast - 1);
-      Range<6> K(kfirstw, klastw + 1);
+      Range<3> K(kfirstw, klastw + 1);
 #endif
 #ifdef ENABLE_HIP
       Range<64> I(ifirst + 2, ilast - 1);
@@ -520,6 +520,9 @@ void rhs4th3wind(int ifirst, int ilast, int jfirst, int jlast, int kfirst,
         float_sw4 mu1zz = 0;
         float_sw4 mu2zz = 0;
         float_sw4 mu3zz = 0;
+#ifdef ENABLE_HIP
+#pragma unroll 8
+#endif
         for (int q = 1; q <= 8; q++) {
           //		     lap2mu= 0;
           //		     mucof = 0;
@@ -773,11 +776,11 @@ void rhs4th3wind(int ifirst, int ilast, int jfirst, int jlast, int kfirst,
     }  // end if (upper)
 
     if (lower) {
-#if !defined(RAJA_ONLY)
+#if !defined(RAJA_ONLY) && defined(ENABLE_GPU)
 #ifdef ENABLE_CUDA
       Range<16> I(ifirst + 2, ilast - 1);
       Range<4> J(jfirst + 2, jlast - 1);
-      Range<6> K(kfirstw, klastw + 1);
+      Range<3> K(kfirstw, klastw + 1);
 #endif
 #ifdef ENABLE_HIP
       Range<64> I(ifirst + 2, ilast - 1);
@@ -865,9 +868,15 @@ void rhs4th3wind(int ifirst, int ilast, int jfirst, int jlast, int kfirst,
         float_sw4 mu1zz = 0;
         float_sw4 mu2zz = 0;
         float_sw4 mu3zz = 0;
+#ifdef ENABLE_HIP
+#pragma unroll 8
+#endif
         for (int qb = 1; qb <= 8; qb++) {
           float_sw4 mucof = 0;
           float_sw4 lap2mu = 0;
+#ifdef ENABLE_HIP
+#pragma unroll 8
+#endif
           for (int mb = 1; mb <= 8; mb++) {
             mucof += acof(kb, qb, mb) * mu(i, j, nk - mb + 1);
             lap2mu += acof(kb, qb, mb) *

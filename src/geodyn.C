@@ -16,6 +16,7 @@
 #include "EW.h"
 #include "F77_FUNC.h"
 #include "caliper.h"
+#include "policies.h"
 #include "foralls.h"
 
 using namespace std;
@@ -471,9 +472,9 @@ void EW::impose_geodyn_ibcdata(vector<Sarray>& u, vector<Sarray>& um,
       //	       for( int c=1 ; c <= 3 ; c++ )
       //	       {
       //		  u[g](c,i,j0,k0-1) =
-      //cext1*u[g](c,i,j0,k0)+cext2*u[g](c,i,j0,k0+1)+cext3*u[g](c,i,j0,k0+2);
+      // cext1*u[g](c,i,j0,k0)+cext2*u[g](c,i,j0,k0+1)+cext3*u[g](c,i,j0,k0+2);
       //		  u[g](c,i,j1,k0-1) =
-      //cext1*u[g](c,i,j1,k0)+cext2*u[g](c,i,j1,k0+1)+cext3*u[g](c,i,j1,k0+2);
+      // cext1*u[g](c,i,j1,k0)+cext2*u[g](c,i,j1,k0+1)+cext3*u[g](c,i,j1,k0+2);
       //	       }
 
       Sarray& gd14 = m_geodyn_data1[4];
@@ -747,7 +748,7 @@ void EW::impose_geodyn_ibcdata(vector<Sarray>& u, vector<Sarray>& um,
                                                (strfact * m_geodyn_h) +
                                            1));
           //	       int kg0 = static_cast<int>(floor(((k-1)*h -
-          //m_geodyn_origin[2])/m_geodyn_h+1));
+          // m_geodyn_origin[2])/m_geodyn_h+1));
           if (ig0 >= m_geodyn_ni) ig0 = m_geodyn_ni - 1;
           if (ig0 <= 0) ig0 = 1;
           if (kg0 >= m_geodyn_nk) kg0 = m_geodyn_nk - 1;
@@ -1003,16 +1004,16 @@ void EW::geodyn_second_ghost_point(vector<Sarray>& rho, vector<Sarray>& mu,
       if (low_interior)
         evalLu_Dim(m_iStart[g], m_iEnd[g], m_jStart[g], m_jEnd[g], m_kStart[g],
                    m_kEnd[g],
-                   //			U[g].c_ptr(), Lu0.c_ptr(), mu[g].c_ptr(),
-                   //lambda[g].c_ptr(),
+                   //			U[g].c_ptr(), Lu0.c_ptr(),
+                   // mu[g].c_ptr(), lambda[g].c_ptr(),
                    U[g], Lu0, mu[g].c_ptr(), lambda[g].c_ptr(), h, i0, i0, j0,
                    j1, k0, k1);
       Sarray Lu1(3, i1, i1, j0, j1, k0, k1, __FILE__, __LINE__);
       if (high_interior)
         evalLu_Dip(m_iStart[g], m_iEnd[g], m_jStart[g], m_jEnd[g], m_kStart[g],
                    m_kEnd[g],
-                   //			U[g].c_ptr(), Lu1.c_ptr(), mu[g].c_ptr(),
-                   //lambda[g].c_ptr(),
+                   //			U[g].c_ptr(), Lu1.c_ptr(),
+                   // mu[g].c_ptr(), lambda[g].c_ptr(),
                    U[g], Lu1, mu[g].c_ptr(), lambda[g].c_ptr(), h, i1, i1, j0,
                    j1, k0, k1);
       int kstart = k0 + 1;
@@ -1022,14 +1023,14 @@ void EW::geodyn_second_ghost_point(vector<Sarray>& rho, vector<Sarray>& mu,
           evalLu_DkpDim(m_iStart[g], m_iEnd[g], m_jStart[g], m_jEnd[g],
                         m_kStart[g], m_kEnd[g],
                         //			U[g].c_ptr(), Lu0.c_ptr(),
-                        //mu[g].c_ptr(), lambda[g].c_ptr(),
+                        // mu[g].c_ptr(), lambda[g].c_ptr(),
                         U[g], Lu0, mu[g].c_ptr(), lambda[g].c_ptr(), h, i0, i0,
                         j0, j1, k0, k1);
         if (high_interior)
           evalLu_DkpDip(m_iStart[g], m_iEnd[g], m_jStart[g], m_jEnd[g],
                         m_kStart[g], m_kEnd[g],
                         //			U[g].c_ptr(), Lu1.c_ptr(),
-                        //mu[g].c_ptr(), lambda[g].c_ptr(),
+                        // mu[g].c_ptr(), lambda[g].c_ptr(),
                         U[g], Lu1, mu[g].c_ptr(), lambda[g].c_ptr(), h, i1, i1,
                         j0, j1, k0, k1);
         kstart = k0;
@@ -1149,8 +1150,8 @@ void EW::geodyn_second_ghost_point(vector<Sarray>& rho, vector<Sarray>& mu,
         Lu0.define(3, i0, i1, j0, j0, k0, k1);
         evalLu_Djm(m_iStart[g], m_iEnd[g], m_jStart[g], m_jEnd[g], m_kStart[g],
                    m_kEnd[g],
-                   //			U[g].c_ptr(), Lu0.c_ptr(), mu[g].c_ptr(),
-                   //lambda[g].c_ptr(),
+                   //			U[g].c_ptr(), Lu0.c_ptr(),
+                   // mu[g].c_ptr(), lambda[g].c_ptr(),
                    U[g], Lu0, mu[g].c_ptr(), lambda[g].c_ptr(), h, i0, i1, j0,
                    j0, k0, k1);
       }
@@ -1158,8 +1159,8 @@ void EW::geodyn_second_ghost_point(vector<Sarray>& rho, vector<Sarray>& mu,
         Lu1.define(3, i0, i1, j1, j1, k0, k1);
         evalLu_Djp(m_iStart[g], m_iEnd[g], m_jStart[g], m_jEnd[g], m_kStart[g],
                    m_kEnd[g],
-                   //			U[g].c_ptr(), Lu1.c_ptr(), mu[g].c_ptr(),
-                   //lambda[g].c_ptr(),
+                   //			U[g].c_ptr(), Lu1.c_ptr(),
+                   // mu[g].c_ptr(), lambda[g].c_ptr(),
                    U[g], Lu1, mu[g].c_ptr(), lambda[g].c_ptr(), h, i0, i1, j1,
                    j1, k0, k1);
       }
@@ -1168,14 +1169,14 @@ void EW::geodyn_second_ghost_point(vector<Sarray>& rho, vector<Sarray>& mu,
           evalLu_DkpDjm(m_iStart[g], m_iEnd[g], m_jStart[g], m_jEnd[g],
                         m_kStart[g], m_kEnd[g],
                         //			U[g].c_ptr(), Lu0.c_ptr(),
-                        //mu[g].c_ptr(), lambda[g].c_ptr(),
+                        // mu[g].c_ptr(), lambda[g].c_ptr(),
                         U[g], Lu0, mu[g].c_ptr(), lambda[g].c_ptr(), h, i0, i1,
                         j0, j0, k0, k1);
         if (high_interior)
           evalLu_DkpDjp(m_iStart[g], m_iEnd[g], m_jStart[g], m_jEnd[g],
                         m_kStart[g], m_kEnd[g],
                         //			U[g].c_ptr(), Lu1.c_ptr(),
-                        //mu[g].c_ptr(), lambda[g].c_ptr(),
+                        // mu[g].c_ptr(), lambda[g].c_ptr(),
                         U[g], Lu1, mu[g].c_ptr(), lambda[g].c_ptr(), h, i0, i1,
                         j1, j1, k0, k1);
       }
@@ -1290,8 +1291,8 @@ void EW::geodyn_second_ghost_point(vector<Sarray>& rho, vector<Sarray>& mu,
         Lu0.define(3, i0, i1, j0, j1, k0, k0);
         evalLu_Dkm(m_iStart[g], m_iEnd[g], m_jStart[g], m_jEnd[g], m_kStart[g],
                    m_kEnd[g],
-                   //			U[g].c_ptr(), Lu0.c_ptr(), mu[g].c_ptr(),
-                   //lambda[g].c_ptr(),
+                   //			U[g].c_ptr(), Lu0.c_ptr(),
+                   // mu[g].c_ptr(), lambda[g].c_ptr(),
                    U[g], Lu0, mu[g].c_ptr(), lambda[g].c_ptr(), h, i0, i1, j0,
                    j1, k0, k0);
       }
@@ -1300,8 +1301,8 @@ void EW::geodyn_second_ghost_point(vector<Sarray>& rho, vector<Sarray>& mu,
         Lu1.define(3, i0, i1, j0, j1, k1, k1);
         evalLu_Dkp(m_iStart[g], m_iEnd[g], m_jStart[g], m_jEnd[g], m_kStart[g],
                    m_kEnd[g],
-                   //			U[g].c_ptr(), Lu1.c_ptr(), mu[g].c_ptr(),
-                   //lambda[g].c_ptr(),
+                   //			U[g].c_ptr(), Lu1.c_ptr(),
+                   // mu[g].c_ptr(), lambda[g].c_ptr(),
                    U[g], Lu1, mu[g].c_ptr(), lambda[g].c_ptr(), h, i0, i1, j0,
                    j1, k1, k1);
       }
@@ -1563,11 +1564,11 @@ void EW::geodyn_second_ghost_point_curvilinear(vector<Sarray>& rho,
                Lu0(3, i0, j, k) - forcing[g](3, i0, j, k);
 
         //	    U[g](1,i0+1,j,k) = U[g](1,i0+1,j,k) +
-        //h2*res1/(mu[g](i0+1,j,k)+mu[g](i0,j,k)+
+        // h2*res1/(mu[g](i0+1,j,k)+mu[g](i0,j,k)+
         //								 0.5*(lambda[g](i0+1,j,k)+lambda[g](i0,j,k)));
         //	    U[g](2,i0+1,j,k) = U[g](2,i0+1,j,k) +
-        //2*h2*res2/(mu[g](i0+1,j,k)+mu[g](i0,j,k)); 	    U[g](3,i0+1,j,k) =
-        //U[g](3,i0+1,j,k) + 2*h2*res3/(mu[g](i0+1,j,k)+mu[g](i0,j,k));
+        // 2*h2*res2/(mu[g](i0+1,j,k)+mu[g](i0,j,k)); 	    U[g](3,i0+1,j,k) =
+        // U[g](3,i0+1,j,k) + 2*h2*res3/(mu[g](i0+1,j,k)+mu[g](i0,j,k));
         U[g](1, i0 + 1, j, k) =
             U[g](1, i0 + 1, j, k) +
             mJ[g](i0, j, k) * res1 /
@@ -1587,8 +1588,8 @@ void EW::geodyn_second_ghost_point_curvilinear(vector<Sarray>& rho,
                  mu[g](i0, j, k) * SQR(mMetric[g](1, i0, j, k)));
         //	    if( i0+1==86 && j==102 && k==25)
         //		     cout << "In geodyn bc "  << m_myRank << " " <<
-        //U[g](1,i0+1,j,k) << 			" " << Um[g](1,i0,j,k) << " " << bnd0[0] << " " <<
-        //Lu0(1,i0,j,k) << endl;
+        // U[g](1,i0+1,j,k) << 			" " << Um[g](1,i0,j,k) << " " <<
+        // bnd0[0] << " " << Lu0(1,i0,j,k) << endl;
       }
       // Upper bndry
       if (high_interior) {
@@ -1606,11 +1607,11 @@ void EW::geodyn_second_ghost_point_curvilinear(vector<Sarray>& rho,
                Lu1(3, i1, j, k) - forcing[g](3, i1, j, k);
 
         //	    U[g](1,i1-1,j,k) = U[g](1,i1-1,j,k) +
-        //h2*res1/(mu[g](i1-1,j,k)+mu[g](i1,j,k)+
+        // h2*res1/(mu[g](i1-1,j,k)+mu[g](i1,j,k)+
         //								 0.5*(lambda[g](i1-1,j,k)+lambda[g](i1,j,k)));
         //	    U[g](2,i1-1,j,k) = U[g](2,i1-1,j,k) +
-        //2*h2*res2/(mu[g](i1-1,j,k)+mu[g](i1,j,k)); 	    U[g](3,i1-1,j,k) =
-        //U[g](3,i1-1,j,k) + 2*h2*res3/(mu[g](i1-1,j,k)+mu[g](i1,j,k));
+        // 2*h2*res2/(mu[g](i1-1,j,k)+mu[g](i1,j,k)); 	    U[g](3,i1-1,j,k) =
+        // U[g](3,i1-1,j,k) + 2*h2*res3/(mu[g](i1-1,j,k)+mu[g](i1,j,k));
         U[g](1, i1 - 1, j, k) =
             U[g](1, i1 - 1, j, k) +
             mJ[g](i1, j, k) * res1 /
@@ -1668,7 +1669,7 @@ void EW::geodyn_second_ghost_point_curvilinear(vector<Sarray>& rho,
       int kg0 = static_cast<int>(floor(
           (mZ[g](i, j0, k) - mZ[g](i, j0, 1)) / (strfact * m_geodyn_h) + 1));
       //	       int kg0 = static_cast<int>(floor(((k-1)*h -
-      //m_geodyn_origin[2])/m_geodyn_h+1));
+      // m_geodyn_origin[2])/m_geodyn_h+1));
       if (ig0 >= m_geodyn_ni) ig0 = m_geodyn_ni - 1;
       if (ig0 <= 0) ig0 = 1;
       if (kg0 >= m_geodyn_nk) kg0 = m_geodyn_nk - 1;
@@ -1733,11 +1734,11 @@ void EW::geodyn_second_ghost_point_curvilinear(vector<Sarray>& rho,
                Lu0(3, i, j0, k) - forcing[g](3, i, j0, k);
 
         //	    U[g](1,i,j0+1,k) = U[g](1,i,j0+1,k) +
-        //2*h2*res1/(mu[g](i,j0+1,k)+mu[g](i,j0,k)); 	    U[g](2,i,j0+1,k) =
-        //U[g](2,i,j0+1,k) +   h2*res2/(mu[g](i,j0+1,k)+mu[g](i,j0,k)+
+        // 2*h2*res1/(mu[g](i,j0+1,k)+mu[g](i,j0,k)); 	    U[g](2,i,j0+1,k) =
+        // U[g](2,i,j0+1,k) +   h2*res2/(mu[g](i,j0+1,k)+mu[g](i,j0,k)+
         //							     0.5*(lambda[g](i,j0+1,k)+lambda[g](i,j0,k)));
         //	    U[g](3,i,j0+1,k) = U[g](3,i,j0+1,k) +
-        //2*h2*res3/(mu[g](i,j0+1,k)+mu[g](i,j0,k));
+        // 2*h2*res3/(mu[g](i,j0+1,k)+mu[g](i,j0,k));
         U[g](1, i, j0 + 1, k) =
             U[g](1, i, j0 + 1, k) +
             2 * mJ[g](i, j0, k) * res1 /
@@ -1772,11 +1773,11 @@ void EW::geodyn_second_ghost_point_curvilinear(vector<Sarray>& rho,
                Lu1(3, i, j1, k) - forcing[g](3, i, j1, k);
 
         //	    U[g](1,i,j1-1,k) = U[g](1,i,j1-1,k) +
-        //2*h2*res1/(mu[g](i,j1-1,k)+mu[g](i,j1,k)); 	    U[g](2,i,j1-1,k) =
-        //U[g](2,i,j1-1,k) +   h2*res2/(mu[g](i,j1-1,k)+mu[g](i,j1,k)+
+        // 2*h2*res1/(mu[g](i,j1-1,k)+mu[g](i,j1,k)); 	    U[g](2,i,j1-1,k) =
+        // U[g](2,i,j1-1,k) +   h2*res2/(mu[g](i,j1-1,k)+mu[g](i,j1,k)+
         //							     0.5*(lambda[g](i,j1-1,k)+lambda[g](i,j1,k)));
         //	    U[g](3,i,j1-1,k) = U[g](3,i,j1-1,k) +
-        //2*h2*res3/(mu[g](i,j1-1,k)+mu[g](i,j1,k));
+        // 2*h2*res3/(mu[g](i,j1-1,k)+mu[g](i,j1,k));
         U[g](1, i, j1 - 1, k) =
             U[g](1, i, j1 - 1, k) +
             2 * mJ[g](i, j1, k) * res1 /
@@ -1877,10 +1878,10 @@ void EW::geodyn_second_ghost_point_curvilinear(vector<Sarray>& rho,
                Lu1(3, i, j, k1) - forcing[g](3, i, j, k1);
 
         //	    U[g](1,i,j,k1-1) = U[g](1,i,j,k1-1) +
-        //2*h2*res1/(mu[g](i,j,k1-1)+mu[g](i,j,k1)); 	    U[g](2,i,j,k1-1) =
-        //U[g](2,i,j,k1-1) + 2*h2*res2/(mu[g](i,j,k1-1)+mu[g](i,j,k1));
+        // 2*h2*res1/(mu[g](i,j,k1-1)+mu[g](i,j,k1)); 	    U[g](2,i,j,k1-1) =
+        // U[g](2,i,j,k1-1) + 2*h2*res2/(mu[g](i,j,k1-1)+mu[g](i,j,k1));
         //	    U[g](3,i,j,k1-1) = U[g](3,i,j,k1-1) +
-        //h2*res3/(mu[g](i,j,k1-1)+mu[g](i,j,k1)+
+        // h2*res3/(mu[g](i,j,k1-1)+mu[g](i,j,k1)+
         //							     0.5*(lambda[g](i,j,k1-1)+lambda[g](i,j,k1)));
         double x[3], amat_[9];
 #define a(i, j) amat_[((i)-1) + 3 * ((j)-1)]
@@ -1941,7 +1942,7 @@ void EW::geodyn_second_ghost_point_curvilinear(vector<Sarray>& rho,
                 << " from DGESV in geodyn_second_ghost_point_curvilinear\n");
         //	    if( info != 0 )
         //	       cout << "ERROR: info = " << info << " from DGESV in
-        //geodyn_second_ghost_point_curvilinear " << endl;
+        // geodyn_second_ghost_point_curvilinear " << endl;
         U[g](1, i, j, k1 - 1) = U[g](1, i, j, k1 - 1) + x[0];
         U[g](2, i, j, k1 - 1) = U[g](2, i, j, k1 - 1) + x[1];
         U[g](3, i, j, k1 - 1) = U[g](3, i, j, k1 - 1) + x[2];
@@ -1962,10 +1963,10 @@ void EW::geodyn_second_ghost_point_curvilinear(vector<Sarray>& rho,
                Lu0(3, i, j, k0) - forcing[g](3, i, j, k0);
 
         //	    U[g](1,i,j,k0+1) = U[g](1,i,j,k0+1) +
-        //2*h2*res1/(mu[g](i,j,k0+1)+mu[g](i,j,k0)); 	    U[g](2,i,j,k0+1) =
-        //U[g](2,i,j,k0+1) + 2*h2*res2/(mu[g](i,j,k0+1)+mu[g](i,j,k0));
+        // 2*h2*res1/(mu[g](i,j,k0+1)+mu[g](i,j,k0)); 	    U[g](2,i,j,k0+1) =
+        // U[g](2,i,j,k0+1) + 2*h2*res2/(mu[g](i,j,k0+1)+mu[g](i,j,k0));
         //	    U[g](3,i,j,k0+1) = U[g](3,i,j,k0+1) +
-        //h2*res3/(mu[g](i,j,k0+1)+mu[g](i,j,k0)+
+        // h2*res3/(mu[g](i,j,k0+1)+mu[g](i,j,k0)+
         //							     0.5*(lambda[g](i,j,k0+1)+lambda[g](i,j,k0)));
         double x[3], amat_[9];
         x[0] = 2 * mJ[g](i, j, k0) * res1;
@@ -2025,7 +2026,7 @@ void EW::geodyn_second_ghost_point_curvilinear(vector<Sarray>& rho,
                 << " from DGESV in geodyn_second_ghost_point_curvilinear\n");
         //	    if( info != 0 )
         //	       cout << "ERROR: info = " << info << " from DGESV in
-        //geodyn_second_ghost_point_curvilinear " << endl;
+        // geodyn_second_ghost_point_curvilinear " << endl;
         U[g](1, i, j, k0 + 1) = U[g](1, i, j, k0 + 1) + x[0];
         U[g](2, i, j, k0 + 1) = U[g](2, i, j, k0 + 1) + x[1];
         U[g](3, i, j, k0 + 1) = U[g](3, i, j, k0 + 1) + x[2];
@@ -2079,7 +2080,7 @@ void evalLu_Dip(
   auto& u = u_arg.getview();
   auto& lu = lu_arg.getview();
 
-#if !defined(RAJA_ONLY)
+#if !defined(RAJA_ONLY) && defined(ENABLE_GPU)
   Range<4> K(klb + 1, kle);
   Range<4> J(jlb + 1, jle);
   Range<4> I(ilb, ile + 1);
@@ -2090,6 +2091,7 @@ void evalLu_Dip(
 
 #else
 
+#if defined(ENABLE_GPU)
   using LOCAL_POL = RAJA::KernelPolicy<RAJA::statement::CudaKernelFixed<
       128,
       RAJA::statement::Tile<
@@ -2105,6 +2107,9 @@ void evalLu_Dip(
                           RAJA::statement::For<
                               2, RAJA::cuda_thread_x_direct,
                               RAJA::statement::Lambda<0> > > > > > > > >;
+#else
+   using LOCAL_POL = DEFAULT_LOOP3;
+#endif 
 
   RAJA::RangeSegment k_range(klb + 1, kle);
   RAJA::RangeSegment j_range(jlb + 1, jle);
@@ -2202,8 +2207,8 @@ void evalLu_Dip(
 
 //-----------------------------------------------------------------------
 void evalLu_Dim(int ib, int ie, int jb, int je, int kb, int ke,
-                //		 float_sw4* a_u, float_sw4* a_lu, float_sw4* a_mu,
-                //float_sw4* a_la,
+                //		 float_sw4* a_u, float_sw4* a_lu, float_sw4*
+                // a_mu, float_sw4* a_la,
                 Sarray& u_arg, Sarray& lu_arg, float_sw4* a_mu, float_sw4* a_la,
                 float_sw4 h, int ilb, int ile, int jlb, int jle, int klb,
                 int kle) {
@@ -2227,7 +2232,7 @@ void evalLu_Dim(int ib, int ie, int jb, int je, int kb, int ke,
   // std::cout<<"SIZES DIM ("<<klb<<","<<(kle+1)<<")( "<<jlb+1<<","<<jle<<"
   // )("<<ilb+1<<","<<ile<<")\n";
   // 96 regs/thread nvcc
-#if !defined(RAJA_ONLY)
+#if !defined(RAJA_ONLY) && defined(ENABLE_GPU)
   Range<4> K(klb + 1, kle);
   Range<4> J(jlb + 1, jle);
   Range<4> I(ilb, ile + 1);
@@ -2242,6 +2247,7 @@ void evalLu_Dim(int ib, int ie, int jb, int je, int kb, int ke,
   //    for( int j=jlb+1 ; j <= jle-1; j++ )
   // 	 for( int i=ilb ; i <= ile; i++ )
 
+#if defined (ENABLE_GPU)
   using LOCAL_POL = RAJA::KernelPolicy<RAJA::statement::CudaKernelFixed<
       128,
       RAJA::statement::Tile<
@@ -2257,6 +2263,9 @@ void evalLu_Dim(int ib, int ie, int jb, int je, int kb, int ke,
                           RAJA::statement::For<
                               2, RAJA::cuda_thread_x_direct,
                               RAJA::statement::Lambda<0> > > > > > > > >;
+#else
+   using LOCAL_POL = DEFAULT_LOOP3;
+#endif
 
   RAJA::RangeSegment k_range(klb + 1, kle);
   RAJA::RangeSegment j_range(jlb + 1, jle);
@@ -2351,8 +2360,8 @@ void evalLu_Dim(int ib, int ie, int jb, int je, int kb, int ke,
 
 //-----------------------------------------------------------------------
 void evalLu_Djp(int ib, int ie, int jb, int je, int kb, int ke,
-                //		 float_sw4* a_u, float_sw4* a_lu, float_sw4* a_mu,
-                //float_sw4* a_la,
+                //		 float_sw4* a_u, float_sw4* a_lu, float_sw4*
+                // a_mu, float_sw4* a_la,
                 Sarray& u_arg, Sarray& lu_arg, float_sw4* a_mu, float_sw4* a_la,
                 float_sw4 h, int ilb, int ile, int jlb, int jle, int klb,
                 int kle) {
@@ -2374,7 +2383,7 @@ void evalLu_Djp(int ib, int ie, int jb, int je, int kb, int ke,
   auto& u = u_arg.getview();
   auto& lu = lu_arg.getview();
 
-#if !defined(RAJA_ONLY)
+#if !defined(RAJA_ONLY) && defined(ENABLE_GPU)
   Range<4> K(klb + 1, kle);
   Range<4> J(jlb, jle + 1);
   Range<16> I(ilb + 1, ile);
@@ -2385,6 +2394,7 @@ void evalLu_Djp(int ib, int ie, int jb, int je, int kb, int ke,
 
 #else
 
+#if defined(ENABLE_GPU)
   using LOCAL_POL = RAJA::KernelPolicy<RAJA::statement::CudaKernelFixed<
       128,
       RAJA::statement::Tile<
@@ -2400,6 +2410,9 @@ void evalLu_Djp(int ib, int ie, int jb, int je, int kb, int ke,
                           RAJA::statement::For<
                               2, RAJA::cuda_thread_x_direct,
                               RAJA::statement::Lambda<0> > > > > > > > >;
+#else
+  using LOCAL_POL=DEFAULT_LOOP3;
+#endif
 
   RAJA::RangeSegment k_range(klb + 1, kle);
   RAJA::RangeSegment j_range(jlb, jle + 1);
@@ -2504,8 +2517,8 @@ void evalLu_Djp(int ib, int ie, int jb, int je, int kb, int ke,
 
 //-----------------------------------------------------------------------
 void evalLu_Djm(int ib, int ie, int jb, int je, int kb, int ke,
-                //		 float_sw4* a_u, float_sw4* a_lu, float_sw4* a_mu,
-                //float_sw4* a_la,
+                //		 float_sw4* a_u, float_sw4* a_lu, float_sw4*
+                // a_mu, float_sw4* a_la,
                 Sarray& u_arg, Sarray& lu_arg, float_sw4* a_mu, float_sw4* a_la,
                 float_sw4 h, int ilb, int ile, int jlb, int jle, int klb,
                 int kle) {
@@ -2529,7 +2542,7 @@ void evalLu_Djm(int ib, int ie, int jb, int je, int kb, int ke,
   // std::cout<<"SIZES DJM ("<<klb<<","<<(kle+1)<<")( "<<jlb+1<<","<<jle<<"
   // )("<<ilb+1<<","<<ile<<")\n";
   // 100 regs/thread nvcc
-#if !defined(RAJA_ONLY)
+#if !defined(RAJA_ONLY) && defined (ENABLE_GPU)
   Range<4> K(klb + 1, kle);
   Range<4> J(jlb, jle + 1);
   Range<4> I(ilb + 1, ile);
@@ -2540,6 +2553,7 @@ void evalLu_Djm(int ib, int ie, int jb, int je, int kb, int ke,
 
 #else
 
+#if defined(ENABLE_GPU)
   using LOCAL_POL = RAJA::KernelPolicy<RAJA::statement::CudaKernelFixed<
       128,
       RAJA::statement::Tile<
@@ -2555,6 +2569,9 @@ void evalLu_Djm(int ib, int ie, int jb, int je, int kb, int ke,
                           RAJA::statement::For<
                               2, RAJA::cuda_thread_x_direct,
                               RAJA::statement::Lambda<0> > > > > > > > >;
+#else
+  using LOCAL_POL = DEFAULT_LOOP3;
+#endif
 
   RAJA::RangeSegment k_range(klb + 1, kle);
   RAJA::RangeSegment j_range(jlb, jle + 1);
@@ -2658,8 +2675,8 @@ void evalLu_Djm(int ib, int ie, int jb, int je, int kb, int ke,
 
 //-----------------------------------------------------------------------
 void evalLu_Dkp(int ib, int ie, int jb, int je, int kb, int ke,
-                //		 float_sw4* a_u, float_sw4* a_lu, float_sw4* a_mu,
-                //float_sw4* a_la,
+                //		 float_sw4* a_u, float_sw4* a_lu, float_sw4*
+                // a_mu, float_sw4* a_la,
                 Sarray& u_arg, Sarray& lu_arg, float_sw4* a_mu, float_sw4* a_la,
                 float_sw4 h, int ilb, int ile, int jlb, int jle, int klb,
                 int kle) {
@@ -2681,7 +2698,7 @@ void evalLu_Dkp(int ib, int ie, int jb, int je, int kb, int ke,
   auto& u = u_arg.getview();
   auto& lu = lu_arg.getview();
 
-#if !defined(RAJA_ONLY)
+#if !defined(RAJA_ONLY) && defined(ENABLE_GPU)
   Range<4> K(klb, kle + 1);
   Range<4> J(jlb + 1, jle);
   Range<16> I(ilb + 1, ile);
@@ -2692,6 +2709,7 @@ void evalLu_Dkp(int ib, int ie, int jb, int je, int kb, int ke,
 
 #else
 
+#if defined(ENABLE_GPU)
   using LOCAL_POL = RAJA::KernelPolicy<RAJA::statement::CudaKernelFixed<
       128,
       RAJA::statement::Tile<
@@ -2707,6 +2725,9 @@ void evalLu_Dkp(int ib, int ie, int jb, int je, int kb, int ke,
                           RAJA::statement::For<
                               2, RAJA::cuda_thread_x_direct,
                               RAJA::statement::Lambda<0> > > > > > > > >;
+#else
+  using LOCAL_POL = DEFAULT_LOOP3;
+#endif
 
   RAJA::RangeSegment k_range(klb, kle + 1);
   RAJA::RangeSegment j_range(jlb + 1, jle);
@@ -2811,8 +2832,8 @@ void evalLu_Dkp(int ib, int ie, int jb, int je, int kb, int ke,
 
 //-----------------------------------------------------------------------
 void evalLu_Dkm(int ib, int ie, int jb, int je, int kb, int ke,
-                //		 float_sw4* a_u, float_sw4* a_lu, float_sw4* a_mu,
-                //float_sw4* a_la,
+                //		 float_sw4* a_u, float_sw4* a_lu, float_sw4*
+                // a_mu, float_sw4* a_la,
                 Sarray& u_arg, Sarray& lu_arg, float_sw4* a_mu, float_sw4* a_la,
                 float_sw4 h, int ilb, int ile, int jlb, int jle, int klb,
                 int kle) {
@@ -2835,7 +2856,7 @@ void evalLu_Dkm(int ib, int ie, int jb, int je, int kb, int ke,
   auto& lu = lu_arg.getview();
 
   // 122 Regs/thread
-#if !defined(RAJA_ONLY)
+#if !defined(RAJA_ONLY) && defined(ENABLE_GPU)
   Range<4> K(klb, kle + 1);
   Range<4> J(jlb + 1, jle);
   Range<4> I(ilb + 1, ile);
@@ -2847,6 +2868,7 @@ void evalLu_Dkm(int ib, int ie, int jb, int je, int kb, int ke,
 
 #else
 
+#if defined(ENABLE_GPU)
   using LOCAL_POL = RAJA::KernelPolicy<RAJA::statement::CudaKernelFixed<
       128,
       RAJA::statement::Tile<
@@ -2862,6 +2884,9 @@ void evalLu_Dkm(int ib, int ie, int jb, int je, int kb, int ke,
                           RAJA::statement::For<
                               2, RAJA::cuda_thread_x_direct,
                               RAJA::statement::Lambda<0> > > > > > > > >;
+#else
+    using LOCAL_POL = DEFAULT_LOOP3;
+#endif
 
   RAJA::RangeSegment k_range(klb, kle + 1);
   RAJA::RangeSegment j_range(jlb + 1, jle);
@@ -2966,8 +2991,8 @@ void evalLu_Dkm(int ib, int ie, int jb, int je, int kb, int ke,
 
 //-----------------------------------------------------------------------
 void evalLu_DkpDip(int ib, int ie, int jb, int je, int kb, int ke,
-                   //		    float_sw4* a_u, float_sw4* a_lu, float_sw4* a_mu,
-                   //float_sw4* a_la,
+                   //		    float_sw4* a_u, float_sw4* a_lu, float_sw4*
+                   // a_mu, float_sw4* a_la,
                    Sarray& u_arg, Sarray& lu_arg, float_sw4* a_mu,
                    float_sw4* a_la, float_sw4 h, int ilb, int ile, int jlb,
                    int jle, int klb, int kle) {
@@ -2989,7 +3014,7 @@ void evalLu_DkpDip(int ib, int ie, int jb, int je, int kb, int ke,
   auto& u = u_arg.getview();
   auto& lu = lu_arg.getview();
 
-#if !defined(RAJA_ONLY)
+#if !defined(RAJA_ONLY) && defined(ENABLE_GPU)
   Range<4> K(klb, klb + 1);
   Range<4> J(jlb + 1, jle);
   Range<4> I(ilb, ile + 1);
@@ -3000,6 +3025,7 @@ void evalLu_DkpDip(int ib, int ie, int jb, int je, int kb, int ke,
 
 #else
 
+#if defined(ENABLE_GPU)
   using LOCAL_POL = RAJA::KernelPolicy<RAJA::statement::CudaKernelFixed<
       128,
       RAJA::statement::Tile<
@@ -3015,6 +3041,9 @@ void evalLu_DkpDip(int ib, int ie, int jb, int je, int kb, int ke,
                           RAJA::statement::For<
                               2, RAJA::cuda_thread_x_direct,
                               RAJA::statement::Lambda<0> > > > > > > > >;
+#else
+   using LOCAL_POL = DEFAULT_LOOP3;
+#endif
 
   RAJA::RangeSegment k_range(klb, klb + 1);
   RAJA::RangeSegment j_range(jlb + 1, jle);
@@ -3113,8 +3142,8 @@ void evalLu_DkpDip(int ib, int ie, int jb, int je, int kb, int ke,
 
 //-----------------------------------------------------------------------
 void evalLu_DkpDim(int ib, int ie, int jb, int je, int kb, int ke,
-                   //		    float_sw4* a_u, float_sw4* a_lu, float_sw4* a_mu,
-                   //float_sw4* a_la,
+                   //		    float_sw4* a_u, float_sw4* a_lu, float_sw4*
+                   // a_mu, float_sw4* a_la,
                    Sarray& u_arg, Sarray& lu_arg, float_sw4* a_mu,
                    float_sw4* a_la, float_sw4 h, int ilb, int ile, int jlb,
                    int jle, int klb, int kle) {
@@ -3136,7 +3165,7 @@ void evalLu_DkpDim(int ib, int ie, int jb, int je, int kb, int ke,
   auto& u = u_arg.getview();
   auto& lu = lu_arg.getview();
 
-#if !defined(RAJA_ONLY)
+#if !defined(RAJA_ONLY) && defined(ENABLE_GPU)
   Range<4> K(klb, klb + 1);
   Range<4> J(jlb + 1, jle);
   Range<4> I(ilb, ile + 1);
@@ -3146,6 +3175,8 @@ void evalLu_DkpDim(int ib, int ie, int jb, int je, int kb, int ke,
       tag1, I, J, K, [=] RAJA_DEVICE(Tclass<1556> t, int i, int j, int k) {
 
 #else
+
+#if defined(ENABLE_GPU)
 
   using LOCAL_POL = RAJA::KernelPolicy<RAJA::statement::CudaKernelFixed<
       128,
@@ -3162,6 +3193,9 @@ void evalLu_DkpDim(int ib, int ie, int jb, int je, int kb, int ke,
                           RAJA::statement::For<
                               2, RAJA::cuda_thread_x_direct,
                               RAJA::statement::Lambda<0> > > > > > > > >;
+  #else
+  using LOCAL_POL = DEFAULT_LOOP3;
+  #endif
 
   RAJA::RangeSegment k_range(klb, klb + 1);
   RAJA::RangeSegment j_range(jlb + 1, jle);
@@ -3261,8 +3295,8 @@ void evalLu_DkpDim(int ib, int ie, int jb, int je, int kb, int ke,
 
 //-----------------------------------------------------------------------
 void evalLu_DkpDjp(int ib, int ie, int jb, int je, int kb, int ke,
-                   //		 float_sw4* a_u, float_sw4* a_lu, float_sw4* a_mu,
-                   //float_sw4* a_la,
+                   //		 float_sw4* a_u, float_sw4* a_lu, float_sw4*
+                   // a_mu, float_sw4* a_la,
                    Sarray& u_arg, Sarray& lu_arg, float_sw4* a_mu,
                    float_sw4* a_la, float_sw4 h, int ilb, int ile, int jlb,
                    int jle, int klb, int kle) {
@@ -3284,7 +3318,7 @@ void evalLu_DkpDjp(int ib, int ie, int jb, int je, int kb, int ke,
   auto& u = u_arg.getview();
   auto& lu = lu_arg.getview();
 
-#if !defined(RAJA_ONLY)
+#if !defined(RAJA_ONLY) && defined(ENABLE_GPU)
   Range<4> K(klb, klb + 1);
   Range<4> J(jlb, jle + 1);
   Range<4> I(ilb + 1, ile);
@@ -3295,6 +3329,7 @@ void evalLu_DkpDjp(int ib, int ie, int jb, int je, int kb, int ke,
 
 #else
 
+#if defined(ENABLE_GPU)
   using LOCAL_POL = RAJA::KernelPolicy<RAJA::statement::CudaKernelFixed<
       128,
       RAJA::statement::Tile<
@@ -3310,6 +3345,9 @@ void evalLu_DkpDjp(int ib, int ie, int jb, int je, int kb, int ke,
                           RAJA::statement::For<
                               2, RAJA::cuda_thread_x_direct,
                               RAJA::statement::Lambda<0> > > > > > > > >;
+  #else
+  using LOCAL_POL = DEFAULT_LOOP3;
+  #endif
 
   RAJA::RangeSegment k_range(klb, klb + 1);
   RAJA::RangeSegment j_range(jlb, jle + 1);
@@ -3409,8 +3447,8 @@ void evalLu_DkpDjp(int ib, int ie, int jb, int je, int kb, int ke,
 
 //-----------------------------------------------------------------------
 void evalLu_DkpDjm(int ib, int ie, int jb, int je, int kb, int ke,
-                   //		 float_sw4* a_u, float_sw4* a_lu, float_sw4* a_mu,
-                   //float_sw4* a_la,
+                   //		 float_sw4* a_u, float_sw4* a_lu, float_sw4*
+                   // a_mu, float_sw4* a_la,
                    Sarray& u_arg, Sarray& lu_arg, float_sw4* a_mu,
                    float_sw4* a_la, float_sw4 h, int ilb, int ile, int jlb,
                    int jle, int klb, int kle) {
@@ -3432,7 +3470,7 @@ void evalLu_DkpDjm(int ib, int ie, int jb, int je, int kb, int ke,
   auto& u = u_arg.getview();
   auto& lu = lu_arg.getview();
 
-#if !defined(RAJA_ONLY)
+#if !defined(RAJA_ONLY) && defined(ENABLE_GPU)
   Range<4> K(klb, klb + 1);
   Range<4> J(jlb, jle + 1);
   Range<4> I(ilb + 1, ile);
@@ -3443,6 +3481,7 @@ void evalLu_DkpDjm(int ib, int ie, int jb, int je, int kb, int ke,
 
 #else
 
+#if defined(ENABLE_GPU)
   using LOCAL_POL = RAJA::KernelPolicy<RAJA::statement::CudaKernelFixed<
       128,
       RAJA::statement::Tile<
@@ -3458,6 +3497,9 @@ void evalLu_DkpDjm(int ib, int ie, int jb, int je, int kb, int ke,
                           RAJA::statement::For<
                               2, RAJA::cuda_thread_x_direct,
                               RAJA::statement::Lambda<0> > > > > > > > >;
+  #else
+  using LOCAL_POL = DEFAULT_LOOP3;
+  #endif
 
   RAJA::RangeSegment k_range(klb, klb + 1);
   RAJA::RangeSegment j_range(jlb, jle + 1);
@@ -3890,7 +3932,7 @@ void EW::bcsurf_curvilinear_2nd_order(int side, int i0, int i1, int j0, int j1,
                   << info << " from DGESV in bcsurf_curvilinear_2nd_order\n");
       //	 if( info != 0 )
       //	    cout << "ERROR: info = " << info << " from DGESV in
-      //bcsurf_curvilinear_2nd_order " << endl;
+      // bcsurf_curvilinear_2nd_order " << endl;
 
       u(1, i, j, k0 - 1) = u(1, i, j, k0) + b[0];
       u(2, i, j, k0 - 1) = u(2, i, j, k0) + b[1];
@@ -3931,7 +3973,7 @@ void evalLuCurv(int ib, int ie, int jb, int je, int kb, int ke, Sarray& u_arg,
   const int oj = ju == jl ? 1 : 0;
   const int oi = iu == il ? 1 : 0;
 
-#if !defined(RAJA_ONLY)
+#if !defined(RAJA_ONLY) && defined(ENABLE_GPU)
   Range<4> K(klb + ok, kle - ok + 1);
   Range<4> J(jlb + oj, jle - oj + 1);
   Range<4> I(ilb + oi, ile - oi + 1);
@@ -3946,6 +3988,7 @@ void evalLuCurv(int ib, int ie, int jb, int je, int kb, int ke, Sarray& u_arg,
   //    for( int j=jlb+1 ; j <= jle-1; j++ )
   // 	 for( int i=ilb ; i <= ile; i++ )
 
+#if defined(ENABLE_GPU)
   using LOCAL_POL = RAJA::KernelPolicy<RAJA::statement::CudaKernelFixed<
       128,
       RAJA::statement::Tile<
@@ -3961,6 +4004,9 @@ void evalLuCurv(int ib, int ie, int jb, int je, int kb, int ke, Sarray& u_arg,
                           RAJA::statement::For<
                               2, RAJA::cuda_thread_x_direct,
                               RAJA::statement::Lambda<0> > > > > > > > >;
+#else
+  using LOCAL_POL = DEFAULT_LOOP3;
+#endif
 
   RAJA::RangeSegment k_range(klb + ok, kle - ok + 1);
   RAJA::RangeSegment j_range(jlb + oj, jle - oj + 1);

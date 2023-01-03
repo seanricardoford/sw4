@@ -558,7 +558,7 @@ void Sarray::set_to_zero() {
   SW4_MARK_FUNCTION;
   prefetch();
   float_sw4* lm_data = m_data;
-#ifdef RAJA_ONLY
+#if defined(RAJA_ONLY) || not defined(ENABLE_GPU)
   RAJA::forall<DEFAULT_LOOP1>(RAJA::RangeSegment(0, m_npts),
                               [=] RAJA_DEVICE(size_t i) { lm_data[i] = 0; });
 #else
@@ -579,7 +579,7 @@ void Sarray::set_to_minusOne() {
   SYNC_STREAM;
 #endif
 
-#ifdef RAJA_ONLY
+#if defined(RAJA_ONLY) || not defined(ENABLE_GPU)
 
   RAJA::forall<DEFAULT_LOOP1>(RAJA::RangeSegment(0, m_npts),
                               [=] RAJA_DEVICE(size_t i) { lm_data[i] = -1.; });
@@ -972,13 +972,17 @@ void Sarray::copy_kplane(Sarray& u, int k) {
     int mnj = m_nj;
     // int mnc = m_nc;
     // SW4_MARK_BEGIN("CK_PREF");
-    // prefetch();
-    // u.prefetch();
+//#ifdef SW4_A100_1
+// Not required if get/putbuffer_device is used to avoid page faults
+    //static int cc=0;
+    //cc++;
+    //if (cc%2==0) u.forceprefetch();
+//#endif
     // SW4_MARK_END("CK_PREF");
     size_t ind_start = mni * mnj * (k - mkb);
     size_t uind_start = mni * mnj * (k - um_kb);
 
-#if defined(RAJA_ONLY)
+#if defined(RAJA_ONLY) || not defined (ENABLE_GPU)
     RAJA::RangeSegment c_range(0, m_nc);
     RAJA::RangeSegment j_range(0, m_je - m_jb + 1);
     RAJA::RangeSegment i_range(0, m_ie - m_ib + 1);
@@ -1386,7 +1390,7 @@ void Sarray::insert_intersection(Sarray& a_U) {
     const int lm_nc = m_nc;
     // std::cout<<"Calling interest \n"<<std::flush;
 
-#if !defined(RAJA_ONLY)
+#if !defined(RAJA_ONLY) && defined (ENABLE_GPU)
 
     Range<16> I(wind[0], wind[1] + 1);
     Range<16> J(wind[2], wind[3] + 1);
@@ -1620,7 +1624,7 @@ void Sarray::switch_space(Space new_space) {
 }
 //----------------------------------------------------------------------
 void mset_to_zero_async(Sarray& S0, Sarray& S1, Sarray& S2, Sarray& S3) {
-#if defined(RAJA_ONLY)
+#if defined(RAJA_ONLY) || not defined(ENABLE_GPU)
   S0.set_to_zero_async();
   S1.set_to_zero_async();
   S2.set_to_zero_async();
@@ -1659,7 +1663,7 @@ void vset_to_zero_async(std::vector<Sarray>& v, int N) {
   // for(int i=0;i<N;i++)
   // std::cout<<"SIZES "<<v[i].m_npts<<"\n";
 
-#if defined(RAJA_ONLY)
+#if defined(RAJA_ONLY) || not defined(ENABLE_GPU)
   for (int g = 0; g < N; g++) v[g].set_to_zero_async();
 
 #else
@@ -1787,16 +1791,52 @@ void vset_to_zero_async(std::vector<Sarray>& v, int N) {
 
 #endif
 }
+// Old norm based on atomics left as reference.
+// Does not work well for comparisons and is slower 
+// float_sw4 Sarray::norm() {
+//   float_sw4* sum;
+//   sum = SW4_NEW(Space::Managed_temps, float_sw4[1]);
+//   sum[0] = 0.0;
+//   float_sw4* lm_data = m_data;
+//   RAJA::forall<DEFAULT_LOOP1>(
+//       RAJA::RangeSegment(0, m_npts), [=] RAJA_DEVICE(size_t i) {
+//         RAJA::atomicAdd<RAJA::auto_atomic>(sum, lm_data[i] * lm_data[i]);
+//       });
+//   float_sw4 retval = *sum;
+//   ::operator delete[](sum, Space::Managed_temps);
+//   return retval;
+// }
 float_sw4 Sarray::norm() {
-  float_sw4* sum;
-  sum = SW4_NEW(Space::Managed_temps, float_sw4[1]);
-  sum[0] = 0.0;
+
+#ifdef ENABLE_GPU
+
+  RAJA::ReduceSum<REDUCTION_POLICY,float_sw4> rsum(0);
   float_sw4* lm_data = m_data;
   RAJA::forall<DEFAULT_LOOP1>(
       RAJA::RangeSegment(0, m_npts), [=] RAJA_DEVICE(size_t i) {
-        RAJA::atomicAdd<RAJA::auto_atomic>(sum, lm_data[i] * lm_data[i]);
+	rsum+=lm_data[i] * lm_data[i];
       });
-  float_sw4 retval = *sum;
-  ::operator delete[](sum, Space::Managed_temps);
+  float_sw4 retval = static_cast<float_sw4>(rsum.get());
   return retval;
+#else
+  float_sw4 retval=0;
+  for (size_t i=0;i<m_npts;i++) retval+=m_data[i]*m_data[i];
+  return retval;
+#endif
 }
+ size_t Sarray::fwrite(FILE *file){
+   size_t size = m_nc*m_ni*m_nj*m_nk;
+   if (std::fwrite(m_data,sizeof(float_sw4),m_nc*m_ni*m_nj*m_nk,file)!=size){
+     std::cerr<<"Write failed in Sarray::fwrite\n";
+     abort();
+   }
+   return size;
+ }
+ size_t Sarray::fread(FILE *file){
+   size_t size = m_nc*m_ni*m_nj*m_nk;
+   if (std::fread(m_data,sizeof(float_sw4),m_nc*m_ni*m_nj*m_nk,file)!=size){
+     std::cerr<<"Read failed in Sarray::fread\n";
+     abort();
+   }
+   return size;
+ }

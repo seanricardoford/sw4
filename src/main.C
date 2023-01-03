@@ -60,6 +60,9 @@
 #include "H5Z_SZ.h"
 #endif
 
+#ifdef SW4_USE_SCR
+#include "scr.h"
+#endif
 #if defined(SW4_SIGNAL_CHECKPOINT)
 //
 // Currently no way to get the singnal to all processes without killing the job
@@ -102,7 +105,27 @@ int main(int argc, char **argv) {
 #else
   MPI_Init(&argc, &argv);
 #endif
+  
+
+#ifdef SW4_USE_SCR
+  SCR_Configf("SCR_DEBUG=%d",1);
+  SCR_Configf("SCR_CACHE_SIZE=%d",2);
+  SCR_Configf("SCR_CACHE_BYPASS=%d",1); // Default 1 . 0 leaves everything in cache
+  SCR_Configf("SCR_FLUSH=%d",0);
+  SCR_Configf("SCR_FLUSH_ASYNC=%d",1);
+  SCR_Configf("SCR_FLUSH_TYPE=%s","PTHREAD");
+  SCR_Init();
+#endif
   MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
+  if (!myRank){
+  time_t now;
+  time(&now);
+  printf("After MPI_Init %s \n",ctime(&now));
+}
+
+#ifdef SW4_NORM_TRACE
+  if (!myRank) std::cout<<"\n\n\n\nWARNING "" SW4 NORM TRACE is On. Output in Norms.dat \n\n\n";
+#endif
 
   MPI_Info info;
   MPI_Comm shared_comm;
@@ -130,7 +153,7 @@ int main(int argc, char **argv) {
   // auto device_allocator = rma.getAllocator("DEVICE");
 #ifdef ENABLE_HIP
   const size_t pool_size =
-      static_cast<size_t>(10) * 1024 * 1024 * 1024;  //+102*1024*1024;
+      static_cast<size_t>(20) * 1024 * 1024 * 1024;  //+102*1024*1024;
 #else
   const size_t pool_size =
       static_cast<size_t>(15) * 1024 * 1024 * 1024;  //+102*1024*1024;
@@ -147,11 +170,15 @@ int main(int argc, char **argv) {
       global_variables.device);
 #endif
 
+  const int alignment = 512; // 1024 may be 1% faster on Crusher
   auto pooled_allocator =
       rma.makeAllocator<umpire::strategy::QuickPool, true>(
-          string("UM_pool"), pref_allocator, pool_size, 1024 * 1024, 512);
-
+          string("UM_pool"), pref_allocator, pool_size, 1024 * 1024, alignment);
+#ifdef ENABLE_HIP
+  const size_t pool_size_small = static_cast<size_t>(1024) * 1024 * 1024;
+#else
   const size_t pool_size_small = static_cast<size_t>(250) * 1024 * 1024;
+#endif
 
   // This is a temporary workaround to the issue of Umpire always using device 0
   // for cudaMemAdvises using AllocationAdvisor.
@@ -161,9 +188,13 @@ int main(int argc, char **argv) {
   auto pooled_allocator_small =
       rma.makeAllocator<umpire::strategy::QuickPool, true>(
           string("UM_pool_temps"), pref_allocator, pool_size_small, 1024 * 1024,
-          512);
+          alignment);
 
+#ifdef ENABLE_HIP
+  const size_t object_pool_size = static_cast<size_t>(3) *1024* 1024 * 1024;
+#else
   const size_t object_pool_size = static_cast<size_t>(500) * 1024 * 1024;
+#endif
 
   // rma.makeAllocator<umpire::strategy::MonotonicAllocationStrategy,false>(string("UM_object_pool"),
   //					   object_pool_size,allocator);
@@ -191,12 +222,12 @@ int main(int argc, char **argv) {
 
   // } else {
   //   auto pooled_allocator_small =
-  //     rma.makeAllocator<umpire::strategy::DynamicPool,true>(string("UM_pool_temps"),
+  //     rma.makeAllocator<umpire::strategy::QuickPool,true>(string("UM_pool_temps"),
   //  							   pref_allocator,pool_size_small);
   // }
 
   // auto pooled_allocator2 =
-  //   rma.makeAllocator<umpire::strategy::DynamicPool,false>(string("UM_pool_temps"),
+  //   rma.makeAllocator<umpire::strategy::QuickPool,false>(string("UM_pool_temps"),
   //                                                   allocator);
 #endif
 
@@ -226,6 +257,9 @@ int main(int argc, char **argv) {
     }
 #endif
     // Stop MPI
+#ifdef SW4_USE_SCR
+  SCR_Finalize();
+#endif
     MPI_Finalize();
     return 1;
   } else if (strcmp(argv[1], "-v") == 0) {
@@ -398,6 +432,16 @@ int main(int argc, char **argv) {
   H5Z_SZ_Finalize();
 #endif
 
+#ifdef SW4_USE_SCR
+  // Flush any cached checkpoints to parallel file system
+  SCR_Finalize();
+#endif
+
+  if (!myRank){
+  time_t now;
+  time(&now);
+  printf("Pre MPI_Finalize %s \n",ctime(&now));
+}
   // Stop MPI
   MPI_Finalize();
   // std::cout<<"MPI_Finalize done\n"<<std::flush;

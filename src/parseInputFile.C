@@ -37,12 +37,12 @@
 #include "Filter.h"
 #include "Image3D.h"
 #include "MaterialBlock.h"
+#include "MaterialGMG.h"
 #include "MaterialIfile.h"
 #include "MaterialInvtest.h"
 #include "MaterialPfile.h"
 #include "MaterialRfile.h"
 #include "MaterialSfile.h"
-#include "MaterialGMG.h"
 #include "MaterialVolimagefile.h"
 #include "Require.h"
 #include "TimeSeries.h"
@@ -802,9 +802,9 @@ void EW::processGrid(char* buffer) {
     }
     token = strtok(NULL, " \t");
   }
-
+  //std::cout<<"PROJ) "<<proj0.str().c_str()<<"\n";
   // hard code units to be in meters
-  proj0 << "+units=m";
+  //proj0 << "+units=m"; 
 
   //--------------------------------------------------------------------
   // There are only three ways to specify a grid.
@@ -1193,6 +1193,9 @@ void EW::processGrid(char* buffer) {
   m_global_xmax = xprime;
   m_global_ymax = yprime;
   m_global_zmax = zprime;
+
+  // hard code units to be in meters
+  proj0 << "+units=m";
 
 #if !defined(ENABLE_PROJ4) && !defined(ENABLE_PROJ_6)
   CHECK_INPUT(!use_geoprojection,
@@ -3690,7 +3693,7 @@ void EW::processCheckPoint(char* buffer) {
   string filePrefix = "checkpoint";
 
   string restartFileName, restartPath;
-  bool restartFileGiven = false, restartPathGiven = false, useHDF5 = false;
+  bool restartLatestGiven = false, restartFileGiven = false, restartPathGiven = false, useHDF5 = false;
   int compressionMode = 0;
   double compressionPar;
 
@@ -3714,6 +3717,9 @@ void EW::processCheckPoint(char* buffer) {
     } else if (startswith("file=", token)) {
       token += 5;  // skip file=
       filePrefix = token;
+    } else if (startswith("restartlatest", token)) {
+      token += 13;
+      restartLatestGiven = true;
     } else if (startswith("restartfile=", token)) {
       token += 12;  // skip file=
       restartFileName = token;
@@ -3801,6 +3807,12 @@ void EW::processCheckPoint(char* buffer) {
     m_check_point->set_checkpoint_file(filePrefix, cycle, cycleInterval,
                                        bufsize, useHDF5, compressionMode,
                                        compressionPar);
+
+  CHECK_INPUT(!(restartLatestGiven && restartFileGiven),
+              err << "invalid to specify both restartlatest and restartfile");
+  if (restartLatestGiven) {
+    m_check_point->set_restart_latest(bufsize);
+  }
   if (restartFileGiven) {
     m_check_point->set_restart_file(restartFileName, bufsize);
   }
@@ -5145,7 +5157,7 @@ void EW::processSource(char* buffer,
   bool ncyc_set = false;
 
   timeDep tDep = iRickerInt;
-  char formstring[100];
+  char formstring[1000];
   char dfile[1000];
 
   strcpy(formstring, "Ricker");
@@ -5335,7 +5347,7 @@ void EW::processSource(char* buffer,
       f0 = atof(token);
     } else if (startswith("type=", token)) {
       token += 5;
-      strncpy(formstring, token, 100);
+      strncpy(formstring, token, 1000);
       if (!strcmp("Ricker", formstring))
         tDep = iRicker;
       else if (!strcmp("Gaussian", formstring))
@@ -5718,7 +5730,7 @@ void EW::processRuptureHDF5(char* buffer,
 #ifdef USE_HDF5
   int event = 0;
   bool rfileset = false;
-  char rfile[100];
+  char rfile[1000];
   double stime, etime;
   stime = MPI_Wtime();
 
@@ -5749,7 +5761,7 @@ void EW::processRuptureHDF5(char* buffer,
       break;
     if (startswith("file=", token)) {
       token += 5;  // read past 'file='
-      strncpy(rfile, token, 100);
+      strncpy(rfile, token, 1000);
       rfileset = true;
     } else if (startswith("event=", token)) {
       token += 6;
@@ -5815,9 +5827,9 @@ void EW::processRupture(char* buffer,
   bool rfileset = false;
 
   timeDep tDep = iDiscrete;
-  char formstring[100];
+  char formstring[1000];
   strcpy(formstring, "Discrete");
-  char rfile[100];
+  char rfile[1000];
 
   // bounding box
   // only check the z>zmin when we have topography. For a flat free surface, we
@@ -5846,7 +5858,7 @@ void EW::processRupture(char* buffer,
       break;
     if (startswith("file=", token)) {
       token += 5;  // read past 'file='
-      strncpy(rfile, token, 100);
+      strncpy(rfile, token, 1000);
       rfileset = true;
     } else if (startswith("event=", token)) {
       token += 6;
@@ -8201,17 +8213,12 @@ void EW::processMaterialGMG(char* buffer) {
   string name = "gmg";
   string filename = "NONE";
   string directory = "NONE";
-  float_sw4 a_ppm = 0., vpmin_ppm = 0., vsmin_ppm = 0, rhomin_ppm = 0.;
   string cflatten = "NONE";
-  bool flatten = false;
-  bool coords_geographic = true;
-  int nstenc = 5;
-  int bufsize = 200000;  // Parallel IO buffer, in number of grid points.
 
   char* token = strtok(buffer, " \t");
   //  CHECK_INPUT(strcmp("rfile", token) == 0,
   //	      "ERROR: material data can only be set by an rfile line, not: " <<
-  //token);
+  // token);
 
   string err = token;
   err += " Error: ";

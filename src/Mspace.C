@@ -80,7 +80,7 @@ int presetGPUID(int mpi_rank, int local_rank, int local_size) {
 #ifdef ENABLE_HIP
   int devices_per_node = 4;
   SW4_CheckDeviceError(hipGetDeviceCount(&devices_per_node));
-  printf("Number of devices is %d\n", devices_per_node);
+  //printf("Number of devices is %d\n", devices_per_node);
   fflush(stdout);
   global_variables.num_devices = devices_per_node;
   if (devices_per_node > 1) {
@@ -111,7 +111,7 @@ int presetGPUID(int mpi_rank, int local_rank, int local_size) {
       if (dev_counts_global[i] != 0)
         std::cout << "Device " << i << " used by " << dev_counts_global[i]
                   << " ranks \n";
-  std::cerr << "Device set to " << global_variables.device << "\n";
+  //std::cerr << "Device set to " << global_variables.device << "\n";
 #endif  // ENDIF ENABLE_GPU
   return device;
 }
@@ -307,7 +307,7 @@ void *operator new(std::size_t size, Space loc) throw() {
     return ::operator new(size, Space::Managed);
 #endif
   } else {
-    std::cerr << "Unknown memory space for allocation request " << as_int(loc)
+    std::cerr << "Unknown memory space for allocation request 0 " << as_int(loc)
               << "\n";
     // throw std::bad_alloc();
     abort();
@@ -321,7 +321,7 @@ void *operator new(std::size_t size, Space loc) throw() {
     // std::cout<<"Calling my placement new \n";
     return ::operator new(size);
   } else {
-    std::cerr << "Unknown memory space for allocation request\n";
+    std::cerr << "Unknown memory space for allocation request 1\n";
     abort();
     // throw std::bad_alloc();
   }
@@ -410,7 +410,7 @@ void *operator new[](std::size_t size, Space loc) throw() {
 #endif
   } else {
     // cudaHostAlloc(&ptr,size+sizeof(size_t)*MEM_PAD_LEN,cudaHostAllocMapped));
-    std::cerr << "Unknown memory space for allocation request " << as_int(loc)
+    std::cerr << "Unknown memory space for allocation request  2" << as_int(loc)
               << "\n";
     abort();
     // throw std::bad_alloc();
@@ -425,7 +425,7 @@ void *operator new[](std::size_t size, Space loc) throw() {
     // std::cout<<"Calling my placement new \n";
     return ::operator new(size);
   } else {
-    std::cerr << "Unknown memory space for allocation request " << as_int(loc)
+    std::cerr << "Unknown memory space for allocation request 3" << as_int(loc)
               << "\n";
     throw std::bad_alloc();
   }
@@ -482,7 +482,8 @@ void operator delete(void *ptr, Space loc) throw() {
     SW4_CheckDeviceError(SW4_FREE_MANAGED(ptr));
 #endif
   } else {
-    std::cerr << "Unknown memory space for de-allocation request\n";
+    std::cerr << "Unknown memory space for de-allocation request 4 \n";
+    abort();
   }
 #else
   if ((loc == Space::Managed) || (loc == Space::Device)) {
@@ -536,7 +537,7 @@ void operator delete[](void *ptr, Space loc) throw() {
     SW4_CheckDeviceError(SW4_FREE_PINNED(ptr));
   else if (loc == Space::Host) {
     // std:cout<<"Calling my placement delete\n";
-    ::operator delete[](ptr);
+    ::operator delete(ptr); // No [] because it is allocated using new(size)
   } else if (loc == Space::Managed_temps) {
 #ifdef SW4_USE_UMPIRE
     umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
@@ -548,10 +549,11 @@ void operator delete[](void *ptr, Space loc) throw() {
   } else {
     std::cerr << "Unknown memory space for de-allocation request "
               << as_int(loc) << "\n";
+    abort();
   }
 #else
   if ((loc == Space::Managed) || (loc == Space::Device) ||
-      (loc == Space::Pinned)) {
+      (loc == Space::Pinned) || (loc == Space::Managed_temps)) {
     // std::cout<<"Managed delete not available yet \n";
     ::operator delete(ptr);
   } else if (loc == Space::Host) {
@@ -560,6 +562,7 @@ void operator delete[](void *ptr, Space loc) throw() {
   } else {
     std::cerr << "Unknown memory space for de-allocation request "
               << as_int(loc) << "\n";
+    abort();
   }
 #endif
 }
