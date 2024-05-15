@@ -103,10 +103,12 @@ int main(int argc, char **argv) {
   int provided;
   MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
 #else
-  MPI_Init(&argc, &argv);
+  //MPI_Init(&argc, &argv);
+  int provided;
+  MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
 #endif
   
-
+ 
 #ifdef SW4_USE_SCR
   SCR_Configf("SCR_DEBUG=%d",1);
   SCR_Configf("SCR_CACHE_SIZE=%d",2);
@@ -122,6 +124,8 @@ int main(int argc, char **argv) {
   time(&now);
   printf("After MPI_Init %s \n",ctime(&now));
 }
+
+  //check_affinity(myRank);
 
 #ifdef SW4_NORM_TRACE
   if (!myRank) std::cout<<"\n\n\n\nWARNING "" SW4 NORM TRACE is On. Output in Norms.dat \n\n\n";
@@ -153,7 +157,7 @@ int main(int argc, char **argv) {
   // auto device_allocator = rma.getAllocator("DEVICE");
 #ifdef ENABLE_HIP
   const size_t pool_size =
-      static_cast<size_t>(20) * 1024 * 1024 * 1024;  //+102*1024*1024;
+      static_cast<size_t>(64) * 1024 * 1024 * 1024;  //+102*1024*1024;
 #else
   const size_t pool_size =
       static_cast<size_t>(15) * 1024 * 1024 * 1024;  //+102*1024*1024;
