@@ -191,7 +191,7 @@ endif
 
 ifeq ($(hdf5),yes)
    CXXFLAGS  += -I$(HDF5ROOT)/include -DUSE_HDF5
-   linklibs += -L$(HDF5ROOT)/lib -lhdf5
+   linklibs += -L$(HDF5ROOT)/lib -Wl,-rpath=$(HDF5ROOT)/lib -lhdf5
 endif
 
 ifeq ($(zfp),yes)
