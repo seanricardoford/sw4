@@ -5902,7 +5902,9 @@ void EW::processRupture(char* buffer,
     sscanf(buf, " %lg", &rVersion);
     if (proc_zero()) printf("Version = %.1f\n", rVersion);
     // read 2nd line, starting header block
-    fgets(buf, bufsize, fd);
+    do {
+        fgets(buf, bufsize, fd);
+    } while (buf[0] == '#');
     char* token = strtok(buf, " \t");
     //    printf("token: '%s'\n", token);
     REQUIRE2(strcmp("PLANE", token) == 0,
