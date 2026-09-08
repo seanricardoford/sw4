@@ -48,7 +48,13 @@
 #include "version.h"
 #ifdef ENABLE_CUDA
 #include "cuda_profiler_api.h"
+#if defined(__has_include)
+#if __has_include("nvToolsExtCuda.h")
 #include "nvToolsExtCuda.h"
+#elif __has_include("nvToolsExt.h")
+#include "nvToolsExt.h"
+#endif
+#endif
 #endif
 
 #ifdef USE_ZFP
@@ -157,7 +163,7 @@ int main(int argc, char **argv) {
   // auto device_allocator = rma.getAllocator("DEVICE");
 #ifdef ENABLE_HIP
   const size_t pool_size =
-      static_cast<size_t>(64) * 1024 * 1024 * 1024;  //+102*1024*1024;
+      static_cast<size_t>(32) * 1024 * 1024 * 1024;  //+102*1024*1024;
 #else
   const size_t pool_size =
       static_cast<size_t>(15) * 1024 * 1024 * 1024;  //+102*1024*1024;
@@ -381,8 +387,6 @@ int main(int argc, char **argv) {
 #ifdef USE_HDF5
           myWriteTime += GlobalTimeSeries[0][ts]->getWriteTime();
           if (ts == GlobalTimeSeries[0].size() - 1) {
-            GlobalTimeSeries[0][ts]->closeHDF5File();
-
             MPI_Reduce(&myWriteTime, &allWriteTime, 1, MPI_DOUBLE, MPI_MAX, 0,
                        MPI_COMM_WORLD);
             if (myRank == 0)
@@ -391,6 +395,15 @@ int main(int argc, char **argv) {
           }
 #endif
         }
+
+#ifdef USE_HDF5
+        // There can be one shared handle per HDF5 output file.  Closing every
+        // TimeSeries is safe because receivers for a file share the same
+        // pointer and closeHDF5File is a no-op once that handle is closed.
+        for (int ts = 0; ts < GlobalTimeSeries[0].size(); ts++)
+          if (GlobalTimeSeries[0][ts]->getUseHDF5())
+            GlobalTimeSeries[0][ts]->closeHDF5File();
+#endif
 
         if (myRank == 0) {
           cout << "============================================================"
